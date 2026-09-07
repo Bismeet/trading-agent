@@ -5,6 +5,41 @@ import { Area, AreaChart, ResponsiveContainer } from "recharts";
 import { usd, pct, signed, tone, price, timeAgo } from "../lib/format";
 import { Mascot, Sakura } from "./visuals";
 
+// ---- Agents: last deliberation from the analyst/risk/investor council ----
+function AgentLog({ s }: { s: any }) {
+  const d = s?.agents?.decisions;
+  const last = Array.isArray(d) ? d[d.length - 1] : null;
+  return (
+    <div className="card-quiet p-4">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display font-semibold text-sm">Decision Council</h2>
+        <span className="text-[11px] text-inksoft">analyst → risk → investor · multimodal rules, no AI</span>
+      </div>
+      {!last ? (
+        <p className="text-sm text-inksoft mt-2">No trade intents deliberated yet this cycle.</p>
+      ) : (
+        <div className="mt-2 text-sm">
+          <div className="flex flex-wrap gap-x-4">
+            <span className="tnum">{last.symbol} {last.side.toUpperCase()}</span>
+            <span className={last.approved ? "text-upink font-bold" : "text-downink font-bold"}>
+              {last.approved ? "APPROVED" : "REJECTED"}
+            </span>
+            <span className="text-inksoft text-xs">by {last.strategy_id ?? "manual"}</span>
+          </div>
+          <ul className="mt-2 grid md:grid-cols-3 gap-2 text-xs">
+            {(last.verdicts ?? []).map((v: any, i: number) => (
+              <li key={i} className={`card-quiet p-2 ${v.vote === "veto" ? "text-downink" : "text-upink"}`}>
+                <b className="capitalize">{v.agent}</b>: {v.vote}
+                {v.reasons?.[0] && <div className="text-inksoft mt-0.5">{v.reasons[0]}{v.reasons.length > 1 ? ` +${v.reasons.length - 1} more` : ""}</div>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---- Owner control panel (manual restart / goal / capital / hours / survival) ----
 function ControlPanel({ s }: { s: any }) {
   const [capital, setCapital] = useState("100");
@@ -290,6 +325,8 @@ function Overview({ v2, s }: { v2: any; s: any }) {
       </div>
 
       <PositionGrid positions={s.positions ?? []} />
+
+      <AgentLog s={s} />
 
       <ControlPanel s={s} />
 

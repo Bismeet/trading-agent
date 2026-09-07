@@ -69,6 +69,25 @@ survival mandate; these are implemented as a documented extension, not source be
 - **Manual Control panel** on the dashboard Overview tab (inputs + buttons + live
   survival status badge).
 
+Additionally added AFTER a live multi-agent request:
+
+- **Multi-agent decision council** (`scripts/v2/agents.mjs`, `data/agents.v2.jsonl`,
+  "Decision Council" card on Overview). Three **rule-based** agents — no LLM — deliberate
+  over every new trade intent before it is queued:
+  - **Analyst**: vetoes US equity longs under `us_down`, crypto longs under
+    `crypto_down` / `crypto_down_highvol`; adjusts confidence on crypto fear/greed
+    (extreme fear boosts longs, extreme greed penalizes) and funding crowding.
+  - **Risk**: enforces the position cap (10), a same-side crypto correlation cluster cap
+    (4), and a 10% drawdown brake.
+  - **Investor**: refuses to execute without a fresh (non-stale) quote or on a tiny wallet.
+  - Any single veto rejects the intent; every verdict is logged with reasons and
+    surfaced live in the dashboard.
+- The council does not replace the survival gate (controls.mjs) — both must pass.
+
+Verified: `tests/agents.test.mjs` 7/7 pass; full suite 45 tests → **52/52**. A live
+demo with real quotes/world data showed the analyst/risk/investor approving a BTC long
+(F&G 71, funding ≈ 0). Engine runs the council every cycle with no crash.
+
 Verified live (2026-09-07): POST setSurvival → engine consumed within one cycle →
 signals.survival.enabled=true, survivalBlocked=true while equity < start. Validation
 rejects invalid payloads (400). Tests: `tests/controls.test.mjs` 4/4 pass.

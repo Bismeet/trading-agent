@@ -3,7 +3,7 @@
 // to pending.v2.json and filled on a later cycle using a fresh observation; risk
 // exits (liquidation/stop/target/time/trail) execute immediately in the same cycle.
 import {
-  V2, readJSON, writeJSON, appendJSONL, loadConfig, now, iso, log,
+  V2, readJSON, readJSONL, writeJSON, appendJSONL, loadConfig, now, iso, log,
   fetchQuote, fetchHistory, fetchFx, indicators, regime as computeRegime,
 } from "./store.mjs";
 import fs from "node:fs";
@@ -18,6 +18,7 @@ import { sizeOrder } from "./sizing.mjs";
 import { onClose, scoreStrategies, onEpisodeEnd, evolveTick, buildBrainV2 } from "./brain.mjs";
 import { collectWorld } from "./world.mjs";
 import { consumeCommands, survivalGate } from "./controls.mjs";
+import { agentCouncil } from "./agents.mjs";
 
 const STALE_MS = 5 * 60000; // [DECISION] quote older than 5 minutes is stale
 
@@ -263,6 +264,7 @@ function publishSignals(state, cfg, quotes, world) {
     grossLeverage: eq > 0 ? investedNotional / eq : null,
     survival: state.survival ?? { enabled: false },
     survivalBlocked: survivalGate(state).blocked,
+    agents: readJSONL(V2.agents, 1)[0] ?? null, // last deliberation (owner extension)
     positions,
     watch: cfg.watchlist.map((w) => {
       const q = quotes[w.symbol] || {};
@@ -317,10 +319,17 @@ async function cycle(cfg) {
   }
   const eq = computeEquity(state);
 
-  // 6. run strategies -> queue new intents for a LATER tick (D01)
+  // 6. run strategies -> agent council deliberates -> survivors queue for a LATER tick (D01)
   // Survival mode: no new entries while underwater; 5x leverage cap otherwise.
   const gate = survivalGate(state);
-  let newOrders = gate.blocked ? [] : runStrategies(state, eq, cfg, histCache);
+  const rawIntents = gate.blocked ? [] : runStrategies(state, eq, cfg, histCache);
+  // council uses the last collected world snapshot (step 8 refreshes it after execution)
+  const council = agentCouncil(rawIntents, state, cfg, readJSON(V2.world, null), quotes);
+  if (council.log.length) {
+    log(`agents: ${council.approved.length} approved, ${council.rejected.length} vetoed ` +
+      council.rejected.map((r) => `${r.symbol}(${r.verdicts.find((v) => v.vote === "veto")?.agent})`).join(", "));
+  }
+  const newOrders = council.approved;
   if (!gate.blocked && Number.isFinite(gate.maxLev)) {
     for (const o of newOrders) o.leverage = Math.min(o.leverage, gate.maxLev);
   }

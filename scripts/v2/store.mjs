@@ -24,6 +24,7 @@ export const V2 = {
   worldThesis: path.join(DATA, "world_thesis.v2.json"),
   worldCache: path.join(DATA, "world_cache_v2"),
   commands: path.join(DATA, "commands.v2.json"), // owner control channel (dashboard -> engine)
+  agents: path.join(DATA, "agents.v2.jsonl"),   // multi-agent deliberation log (owner extension)
 };
 
 export const round = (x, d = 2) => {
