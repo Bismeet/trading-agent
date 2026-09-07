@@ -6,6 +6,8 @@ import {
   V2, readJSON, writeJSON, appendJSONL, loadConfig, now, iso, log,
   fetchQuote, fetchHistory, fetchFx, indicators, regime as computeRegime,
 } from "./store.mjs";
+import fs from "node:fs";
+import path from "node:path";
 import {
   emaUpdate, crossedFundingTimestamps, fundingPayment, tradeFee, slippageFraction,
   fillPrice, openPosition, markPosition, unrealizedPnl, sideSign,
@@ -85,7 +87,10 @@ function closePosition(state, cfg, symbol, mark, reason, t) {
   const xPrice = fillPrice(mark, exitAction, halfSpread, slip);
   const gross = (xPrice - pos.entryPrice) * pos.qty * sideSign(pos.side);
   const exitFee = tradeFee(notional, cfg.v2.perpFees.taker);
-  const net = gross - exitFee + pos.fundingAccrued - (pos.entryFeePaid ?? 0) * 0; // entry fee already left wallet
+  // entry fee already left the wallet at open; funding was posted to wallet at accrual,
+  // so net trade P&L for learning = gross - exitFee (+ fundingAccrued already in wallet,
+  // include it in net_pnl so realized_R reflects the full carry cost).
+  const net = gross - exitFee + pos.fundingAccrued;
   const risk = Math.abs(pos.qty * pos.entryPrice * (pos.openMeta.stopPct ?? 0.05)) || pos.isolatedMargin;
   const realizedR = net / risk;
   state.walletBalance += pos.isolatedMargin + gross - exitFee;
@@ -349,9 +354,36 @@ async function cycle(cfg) {
 const once = process.argv.includes("--once");
 const cfg = loadConfig();
 ensureStrategies();
+
+// Single-instance lock + graceful shutdown (production hardening).
+const LOCK = path.join(DATA_DIR(), "engine.v2.lock");
+function DATA_DIR() { return path.dirname(V2.state); }
+function acquireLock() {
+  try {
+    const fd = fs.openSync(LOCK, "wx");
+    fs.writeFileSync(fd, String(process.pid));
+    fs.closeSync(fd);
+  } catch {
+    try {
+      const pid = parseInt(fs.readFileSync(LOCK, "utf8"), 10);
+      process.kill(pid, 0); // throws if dead
+      console.error(`Another engine instance is running (pid ${pid}). Exiting.`);
+      process.exit(1);
+    } catch { /* stale lock */ }
+    fs.rmSync(LOCK, { force: true });
+    fs.writeFileSync(LOCK, String(process.pid));
+  }
+  const release = () => { try { fs.rmSync(LOCK, { force: true }); } catch { /* ignore */ } };
+  process.on("exit", release);
+  for (const sig of ["SIGINT", "SIGTERM"]) {
+    process.on(sig, () => { log(`received ${sig}, shutting down cleanly`); release(); process.exit(0); });
+  }
+}
+
 if (once) {
   cycle(cfg).then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });
 } else {
+  acquireLock();
   const loopSec = cfg.v2.strategies.loopSeconds; // 30s v2 cadence (P11)
   log(`engine starting; cycle every ${loopSec}s. Paper trading only - fake money, real lessons.`);
   let running = false;

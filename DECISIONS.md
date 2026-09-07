@@ -30,9 +30,25 @@ during implementation is recorded here and marked `[DECISION]` in code. These ar
 - `normInv(0.975) ≈ 1.959964`, `normCdf(1.96) ≈ 0.975002`; DSR n<8 fails as specified.
 - `node scripts/v2/init.mjs` initializes Episode 1; repeated init preserves state.
 - `node scripts/v2/engine.mjs --once` completed clean cycles against live feeds
-  (regime computed, signals queued then filled next cycle with fees/slippage/journal/fills).
+  (regime computed, signals queued then filled next cycle with fees/slippage/journal/fills;
+  time-stop closes observed with net P&L settled honestly, including small losses).
 - `next build` passes TypeScript; `GET /api/state` returns version-2 signals, state,
   strategies, equity and world from the data directory on port 3002.
+- **Unit suite `npm test`: 41/41 pass** (tests/math, strategies, sizing-episode, brain) —
+  golden liquidation vectors, Wilder RSI edges, momentum units, dailyVol population-variance
+  fixtures, sizing multipliers/clamps, episode precedence/reset matrix, DSR guards,
+  Acklam reference values, strategyKelly branches, lexicon negation, FNG boundaries.
+- **Live provider smoke `node tests/live-smoke.mjs` (2026-09-07): all 9 checks OK** —
+  Yahoo quotes (BTC/AAPL/RELIANCE.NS), 1y daily history (366 bars ≥ SMA200 warmup),
+  5d/15m crypto bars (463), FX USDINR, Coinbase fallback, alternative.me FNG, Hyperliquid POST.
 
-Not verified: long-run stability, provider rate limits over time, full U01–U28/I01–I10
-test matrix (docs/16), security review. Paper trading only — never connect to real money.
+## Hardening added after initial build
+
+- Single-instance lock file + graceful SIGINT/SIGTERM shutdown in `engine.mjs`.
+- No overlapping cycles if a cycle exceeds the 30s cadence.
+- Funding accrued exactly once per crossed UTC boundary via `lastFundingTs`.
+- `net_pnl` includes signed funding so `realized_R` reflects carry cost (D02 note).
+
+Not verified: multi-day soak, crash-replay equality (D05 full transaction protocol remains
+documented future work), provider rate limits over time, security review.
+Paper trading only — never connect to real money.

@@ -6,6 +6,7 @@
   "scripts": {
     "init": "node scripts/init.mjs",
     "cycle": "node scripts/daemon.mjs --once",
-    "daemon": "node scripts/daemon.mjs"
+    "daemon": "node scripts/daemon.mjs",
+    "test": "node --test tests/"
   }
 }
