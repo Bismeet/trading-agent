@@ -1,0 +1,30 @@
+# .gitlab-ci.yml — CI for the FabInvests engine.
+# Stage 1 (every push): run the 41-test unit suite. Costs ~30s per push.
+# Stage 2 (optional, manual/scheduled): one engine cycle against live feeds as a smoke test.
+# NOTE: CI cannot HOST the 24x7 engine (ephemeral runners, no ports). See deploy/README.md.
+
+stages:
+  - test
+  - smoke
+
+unit-tests:
+  stage: test
+  image: node:22
+  script:
+    - node --test tests/math.test.mjs tests/strategies.test.mjs tests/sizing-episode.test.mjs tests/brain.test.mjs
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_PIPELINE_SOURCE == "web"
+
+live-smoke:
+  stage: smoke
+  image: node:22
+  script:
+    - node tests/live-smoke.mjs
+  # Manual button in the UI, or add a schedule for periodic provider health checks.
+  # Fetching live feeds from GitLab runners generally works (public internet).
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "web"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+  allow_failure: true   # a provider hiccup should not fail the pipeline badge
