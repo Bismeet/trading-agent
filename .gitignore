@@ -1,0 +1,6 @@
+node_modules
+.next
+data/*.log
+
+# runtime data (simulated account state, journals, caches) — local only
+data/
