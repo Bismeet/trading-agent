@@ -23,6 +23,7 @@ export const V2 = {
   world: path.join(DATA, "world.v2.json"),
   worldThesis: path.join(DATA, "world_thesis.v2.json"),
   worldCache: path.join(DATA, "world_cache_v2"),
+  commands: path.join(DATA, "commands.v2.json"), // owner control channel (dashboard -> engine)
 };
 
 export const round = (x, d = 2) => {

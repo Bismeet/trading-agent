@@ -17,6 +17,7 @@ import { ensureStrategies, runStrategies } from "./strategies.mjs";
 import { sizeOrder } from "./sizing.mjs";
 import { onClose, scoreStrategies, onEpisodeEnd, evolveTick, buildBrainV2 } from "./brain.mjs";
 import { collectWorld } from "./world.mjs";
+import { consumeCommands, survivalGate } from "./controls.mjs";
 
 const STALE_MS = 5 * 60000; // [DECISION] quote older than 5 minutes is stale
 
@@ -260,6 +261,8 @@ function publishSignals(state, cfg, quotes, world) {
     generation: state.generation, aggression: state.aggression, lifetime: state.lifetime,
     fundingRate: state.fundingRate ?? null, investedNotional,
     grossLeverage: eq > 0 ? investedNotional / eq : null,
+    survival: state.survival ?? { enabled: false },
+    survivalBlocked: survivalGate(state).blocked,
     positions,
     watch: cfg.watchlist.map((w) => {
       const q = quotes[w.symbol] || {};
@@ -280,6 +283,9 @@ async function cycle(cfg) {
     return;
   }
   state.cycles = (state.cycles ?? 0) + 1;
+
+  // 0. owner commands from the dashboard control panel
+  for (const c of consumeCommands(state, cfg)) log(`command applied: ${c.type} ${JSON.stringify(c)}`);
 
   // 1-2. data + enrichment + regime
   const { quotes } = await gatherData(state, cfg);
@@ -312,7 +318,12 @@ async function cycle(cfg) {
   const eq = computeEquity(state);
 
   // 6. run strategies -> queue new intents for a LATER tick (D01)
-  const newOrders = runStrategies(state, eq, cfg, histCache);
+  // Survival mode: no new entries while underwater; 5x leverage cap otherwise.
+  const gate = survivalGate(state);
+  let newOrders = gate.blocked ? [] : runStrategies(state, eq, cfg, histCache);
+  if (!gate.blocked && Number.isFinite(gate.maxLev)) {
+    for (const o of newOrders) o.leverage = Math.min(o.leverage, gate.maxLev);
+  }
   writeJSON(V2.pending, { orders: [...remaining, ...newOrders] });
 
   // 7. episode lifecycle

@@ -5,6 +5,116 @@ import { Area, AreaChart, ResponsiveContainer } from "recharts";
 import { usd, pct, signed, tone, price, timeAgo } from "../lib/format";
 import { Mascot, Sakura } from "./visuals";
 
+// ---- Owner control panel (manual restart / goal / capital / hours / survival) ----
+function ControlPanel({ s }: { s: any }) {
+  const [capital, setCapital] = useState("100");
+  const [goal, setGoal] = useState("500");
+  const [hours, setHours] = useState("24");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const post = async (body: any, label: string) => {
+    setBusy(label);
+    setMsg(null);
+    try {
+      const res = await fetch("/api/state", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const j = await res.json();
+      setMsg(j.ok ? { ok: true, text: `Queued — engine applies it within ~30s.` } : { ok: false, text: j.error ?? "failed" });
+    } catch (e: any) {
+      setMsg({ ok: false, text: e?.message ?? "request failed" });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const survivalOn = !!s?.survival?.enabled;
+  const cap = Number(capital), tgt = Number(goal), hrs = Number(hours);
+  const restartValid = cap >= 1 && tgt > cap && hrs >= 1 && hrs <= 8760;
+
+  return (
+    <div className="card p-5">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h2 className="font-display font-semibold">Manual Control</h2>
+        <div className="text-xs">
+          {survivalOn ? (
+            <span className={s?.survivalBlocked ? "pill px-2 py-1 text-downink font-bold" : "pill px-2 py-1 text-gold font-bold"}>
+              SURVIVAL {s?.survivalBlocked ? "· waiting to be above water" : "· above water, 5x cap"}
+            </span>
+          ) : (
+            <span className="pill px-2 py-1 text-inksoft">survival off</span>
+          )}
+        </div>
+      </div>
+      <p className="text-xs text-inksoft mt-1">
+        Mandate: survive on your own — losses are not acceptable, long term we only need profit. Survival mode enforces this as far as honestly possible: no new positions while underwater, 5x max once above water. It cannot guarantee profits.
+      </p>
+
+      <div className="grid sm:grid-cols-4 gap-3 mt-4">
+        <label className="text-xs text-inksoft">
+          Starting capital ($)
+          <input
+            type="number" min="1" step="1" value={capital} onChange={(e) => setCapital(e.target.value)}
+            className="mt-1 w-full pill px-3 py-2 text-ink tnum outline-none" />
+        </label>
+        <label className="text-xs text-inksoft">
+          Goal target ($)
+          <input
+            type="number" min="1" step="1" value={goal} onChange={(e) => setGoal(e.target.value)}
+            className="mt-1 w-full pill px-3 py-2 text-ink tnum outline-none" />
+        </label>
+        <label className="text-xs text-inksoft">
+          Run duration (hours)
+          <input
+            type="number" min="1" max="8760" step="1" value={hours} onChange={(e) => setHours(e.target.value)}
+            className="mt-1 w-full pill px-3 py-2 text-ink tnum outline-none" />
+        </label>
+        <div className="flex items-end">
+          <button
+            disabled={!restartValid || busy !== null}
+            onClick={() => { if (confirm(`Restart Episode with $${cap}, goal $${tgt}, ${hrs}h? Open positions are settled and the current run is archived.`)) post({ action: "restart", startingCapital: cap, target: tgt, maxHours: hrs, survival: survivalOn }, "restart"); }}
+            className="w-full pill px-3 py-2 text-sm font-bold text-ink disabled:opacity-40 hover:bg-white"
+          >
+            {busy === "restart" ? "…" : "Restart Episode"}
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-3 mt-3">
+        <button
+          disabled={busy !== null || !(Number(goal) > 0)}
+          onClick={() => post({ action: "setGoal", target: Number(goal), deadlineHours: hrs }, "goal")}
+          className="pill px-4 py-2 text-sm font-bold text-ink disabled:opacity-40 hover:bg-white"
+        >
+          {busy === "goal" ? "…" : "Apply goal only"}
+        </button>
+        <button
+          disabled={busy !== null || survivalOn}
+          onClick={() => post({ action: "setSurvival", enabled: true }, "surv")}
+          className="pill px-4 py-2 text-sm font-bold text-upink disabled:opacity-40 hover:bg-white"
+        >
+          Enable Survival
+        </button>
+        <button
+          disabled={busy !== null || !survivalOn}
+          onClick={() => post({ action: "setSurvival", enabled: false }, "surv")}
+          className="pill px-4 py-2 text-sm text-inksoft disabled:opacity-40 hover:bg-white"
+        >
+          Disable Survival
+        </button>
+      </div>
+
+      {msg && <p className={`text-xs mt-2 ${msg.ok ? "text-upink" : "text-downink"}`}>{msg.text}</p>}
+      <p className="text-[11px] text-inksoft mt-2">
+        Restart settles + archives the current run, then starts a fresh one with your capital/goal/duration. Goal-only applies to the current run using its own progress baseline.
+      </p>
+    </div>
+  );
+}
+
 const NAV = [
   { id: "overview", label: "Overview", icon: "❀" },
   { id: "positions", label: "Positions", icon: "◈" },
@@ -180,6 +290,8 @@ function Overview({ v2, s }: { v2: any; s: any }) {
       </div>
 
       <PositionGrid positions={s.positions ?? []} />
+
+      <ControlPanel s={s} />
 
       <div className="card-quiet p-4 text-sm text-inksoft flex flex-wrap gap-x-6 gap-y-1">
         <span>World regime: <b className="text-ink">{s.world?.regime ?? "—"}</b></span>

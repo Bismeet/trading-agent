@@ -59,12 +59,13 @@ export function recordEquityPeak(state) {
   return dd;
 }
 
-// End precedence: blowup -> goal -> time (docs/11).
+// End precedence: blowup -> goal -> time (docs/11). Owner may override hours per episode.
 export function episodeEndReason(state, cfg, nowTs = now()) {
   const ep = cfg.v2.episode;
+  const maxHours = Number.isFinite(state.episodeMaxHours) ? state.episodeMaxHours : ep.maxHoursPerEpisode;
   if (state.equity <= ep.blowupEquity) return "blowup";
   if (state.goal && state.equity >= state.goal.target) return "goal";
-  if (nowTs - state.startedAt >= ep.maxHoursPerEpisode * 3600000) return "time";
+  if (nowTs - state.startedAt >= maxHours * 3600000) return "time";
   return null;
 }
 

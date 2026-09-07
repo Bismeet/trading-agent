@@ -49,6 +49,30 @@ during implementation is recorded here and marked `[DECISION]` in code. These ar
 - Funding accrued exactly once per crossed UTC boundary via `lastFundingTs`.
 - `net_pnl` includes signed funding so `realized_R` reflects carry cost (D02 note).
 
+## OWNER EXTENSIONS (explicit deviations from the read-only source spec)
+
+The source mandates a read-only dashboard. The owner requested manual controls and a
+survival mandate; these are implemented as a documented extension, not source behavior.
+
+- **Control channel** (`data/commands.v2.json`, `scripts/v2/controls.mjs`, `POST /api/state`):
+  the dashboard queues validated commands (`setGoal`, `restart`, `setSurvival`);
+  the engine consumes them at cycle start and logs each application. Malformed
+  commands are kept with an error instead of being silently dropped.
+- **Manual Restart** — settles/archives the current run (endReason `manual-restart`),
+  then starts a fresh episode with owner-chosen capital, goal target and duration
+  (`state.episodeMaxHours` overrides the config 24h limit).
+- **Survival Mode** — implements the owner mandate ("survive on your own; losses are
+  not acceptable; long-term profit only") as far as an honest simulator can:
+  while equity < goal.startEquity, NO new positions are opened; once above water,
+  entries are allowed but leverage is hard-capped at 5x. **This reduces risk; it
+  cannot guarantee profits or prevent losses.** The UI states this plainly.
+- **Manual Control panel** on the dashboard Overview tab (inputs + buttons + live
+  survival status badge).
+
+Verified live (2026-09-07): POST setSurvival → engine consumed within one cycle →
+signals.survival.enabled=true, survivalBlocked=true while equity < start. Validation
+rejects invalid payloads (400). Tests: `tests/controls.test.mjs` 4/4 pass.
+
 Not verified: multi-day soak, crash-replay equality (D05 full transaction protocol remains
 documented future work), provider rate limits over time, security review.
 Paper trading only — never connect to real money.
