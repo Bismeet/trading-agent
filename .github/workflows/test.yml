@@ -1,0 +1,17 @@
+# GitHub Actions — runs the unit suite on every push/PR (mirror of .gitlab-ci.yml).
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test tests/math.test.mjs tests/strategies.test.mjs tests/sizing-episode.test.mjs tests/brain.test.mjs tests/controls.test.mjs tests/agents.test.mjs
