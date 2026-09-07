@@ -1,17 +1,19 @@
 // tests/controls.test.mjs — owner command channel + survival gating.
-// Backs up and restores data/commands.v2.json so the live engine queue is untouched.
+// Fully isolated: uses a temp FAB_DATA dir so tests NEVER touch the live data/ ledger
+// (regression: earlier version polluted the live episodes.jsonl).
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { fileURLToPath } from "node:url";
-import { consumeCommands, survivalGate, SURVIVAL_MAX_LEV } from "../scripts/v2/controls.mjs";
-import { freshV2State, episodeEndReason } from "../scripts/v2/episode.mjs";
-import { loadConfig } from "../scripts/lib.mjs";
+import os from "node:os";
+import path from "node:path";
+
+process.env.FAB_DATA = fs.mkdtempSync(path.join(os.tmpdir(), "fabinvests-test-"));
+const { consumeCommands, survivalGate, SURVIVAL_MAX_LEV } = await import("../scripts/v2/controls.mjs");
+const { freshV2State, episodeEndReason } = await import("../scripts/v2/episode.mjs");
+const { loadConfig, V2 } = await import("../scripts/v2/store.mjs");
+const CMD = V2.commands;
 
 const cfg = loadConfig();
-const CMD = fileURLToPath(new URL("../data/commands.v2.json", import.meta.url));
-const backup = fs.existsSync(CMD) ? fs.readFileSync(CMD, "utf8") : null;
-test.after(() => { backup !== null ? fs.writeFileSync(CMD, backup) : fs.existsSync(CMD) && fs.rmSync(CMD); });
 
 test("setGoal command updates goal using current equity baseline", () => {
   const s = freshV2State(cfg);

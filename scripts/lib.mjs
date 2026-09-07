@@ -8,7 +8,8 @@ import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-export const DATA = path.join(ROOT, "data");
+// FAB_DATA lets tests/isolated runs point at a different data directory.
+export const DATA = process.env.FAB_DATA ? path.resolve(process.env.FAB_DATA) : path.join(ROOT, "data");
 
 export const PATHS = {
   config: path.join(ROOT, "config.json"),
