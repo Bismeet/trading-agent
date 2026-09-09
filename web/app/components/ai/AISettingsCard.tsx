@@ -27,6 +27,11 @@ export function AISettingsCard({ onConfigChanged }: AISettingsCardProps) {
   const [loading, setLoading] = useState(true);
   const [provider, setProvider] = useState("meta");
   const [model, setModel] = useState("muse-spark-1.3-contributor");
+  // The pair actually active on the server (vs. the draft being edited).
+  const [activePair, setActivePair] = useState<{ provider: string; model: string }>({
+    provider: "meta",
+    model: "muse-spark-1.3-contributor",
+  });
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [isKeyConfigured, setIsKeyConfigured] = useState(false);
@@ -158,15 +163,22 @@ export function AISettingsCard({ onConfigChanged }: AISettingsCardProps) {
 
       const data = await res.json();
       if (data.ok) {
+        const savedProv = data.provider || provider;
+        const savedModel = data.model || model.trim();
         setSaveStatus({
           saving: false,
           ok: true,
-          msg: `Saved & active: ${provider.toUpperCase()} (${model.trim()})`,
+          msg: data.message || `Saved & active: ${savedProv.toUpperCase()} (${savedModel})`,
         });
-        setIsKeyConfigured(true);
-        if (!configuredProviders.includes(provider)) {
-          setConfiguredProviders([...configuredProviders, provider]);
+        // MODEL-SAVE FIX: trust the server's key status instead of always
+        // claiming "Key Configured" — the server now verifies what it saved.
+        setIsKeyConfigured(Boolean(data.isKeyConfigured));
+        if (Array.isArray(data.configuredProviders)) {
+          setConfiguredProviders(data.configuredProviders);
+        } else if (!configuredProviders.includes(savedProv) && data.isKeyConfigured) {
+          setConfiguredProviders([...configuredProviders, savedProv]);
         }
+        setActivePair({ provider: savedProv, model: savedModel });
         setApiKey(""); // Clear uncommitted input
         if (onConfigChanged) onConfigChanged();
       } else {
@@ -205,8 +217,13 @@ export function AISettingsCard({ onConfigChanged }: AISettingsCardProps) {
 
         <div className="flex items-center gap-2">
           <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-sakura/20 border border-sakura/30 text-ink">
-            Active: {currentProvLabel} · {model}
+            Active: {supportedProviders[activePair.provider]?.label || activePair.provider.toUpperCase()} · {activePair.model}
           </span>
+          {(provider !== activePair.provider || model.trim() !== activePair.model) && (
+            <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-800 border-amber-500/25 animate-pulse">
+              Unsaved changes
+            </span>
+          )}
           <span
             className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${
               isKeyConfigured

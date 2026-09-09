@@ -353,7 +353,7 @@ export function FabRichContextCard({
             </div>
 
             {showFullJson && (
-              <pre className="p-3 rounded-xl bg-ink/95 text-[#fdeee3] text-[10px] font-mono overflow-x-auto max-h-56 scrollbar-thin border border-white/10 animate-in fade-in duration-150">
+              <pre className="p-3 rounded-xl bg-ink/95 text-[#e7f2f2] text-[10px] font-mono overflow-x-auto max-h-56 scrollbar-thin border border-white/10 animate-in fade-in duration-150">
                 {JSON.stringify(context, null, 2)}
               </pre>
             )}

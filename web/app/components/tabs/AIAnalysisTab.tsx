@@ -10,13 +10,21 @@ import { StatusBadge } from "../ui/StatusBadge";
 import { GlassButton } from "../ui/GlassButton";
 import { SectionExplainer } from "../ui/SectionExplainer";
 import { AISettingsCard } from "../ai/AISettingsCard";
+import { usePersistedState } from "../../lib/usePersistedState";
+
+const AI_FILTERS = ["all", "analyzing", "approved", "rejected"] as const;
+
+function isAiFilter(value: unknown): value is string {
+  return typeof value === "string" && (AI_FILTERS as readonly string[]).includes(value);
+}
 
 interface AIAnalysisTabProps {
   v2: any;
 }
 
 export function AIAnalysisTab({ v2 }: AIAnalysisTabProps) {
-  const [filter, setFilter] = useState<string>("all");
+  // UI-state persistence: keep the chosen pipeline filter across reloads.
+  const [filter, setFilter] = usePersistedState<string>("ai.filter", "all", isAiFilter);
   const [symbolSearch, setSymbolSearch] = useState<string>("");
   const [selectedCandidate, setSelectedCandidate] = useState<any | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);

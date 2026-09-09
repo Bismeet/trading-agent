@@ -336,7 +336,7 @@ export function AIDeepDiveDrawer({
                       {copied ? "Copied!" : "Copy JSON"}
                     </button>
                   </div>
-                  <pre className="p-3 rounded-lg bg-ink/90 text-[#fdeee3] text-[10px] font-mono overflow-x-auto max-h-48 scrollbar-thin">
+                  <pre className="p-3 rounded-lg bg-ink/90 text-[#e7f2f2] text-[10px] font-mono overflow-x-auto max-h-48 scrollbar-thin">
                     {JSON.stringify(c, null, 2)}
                   </pre>
                 </div>

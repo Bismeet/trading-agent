@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { Sakura } from "./visuals";
+import { AuroraMotes } from "./visuals";
+import { usePersistedState } from "../lib/usePersistedState";
 import { TopHeader } from "./layout/TopHeader";
 import { SidebarNav } from "./layout/SidebarNav";
 import { MobileNav } from "./layout/MobileNav";
@@ -23,13 +24,35 @@ interface DashboardV2Props {
   err?: string | null;
 }
 
+const KNOWN_TABS = [
+  "overview",
+  "positions",
+  "ai",
+  "trades",
+  "strategies",
+  "episodes",
+  "evolution",
+  "world",
+  "lessons",
+] as const;
+
+function isKnownTab(value: unknown): value is string {
+  return typeof value === "string" && (KNOWN_TABS as readonly string[]).includes(value);
+}
+
 export default function DashboardV2({
   data,
   conn = "live",
   fails = 0,
   err = null,
 }: DashboardV2Props) {
-  const [currentTab, setCurrentTab] = useState<string>("overview");
+  // UI-state persistence: reopen the dashboard where you left it.
+  // Stale/unknown saved tabs (e.g. from an older build) fall back to "overview".
+  const [currentTab, setCurrentTab] = usePersistedState<string>(
+    "tab",
+    "overview",
+    isKnownTab,
+  );
   const [mobileNavOpen, setMobileNavOpen] = useState<boolean>(false);
   const [selectedCandidate, setSelectedCandidate] = useState<any | null>(null);
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
@@ -50,7 +73,7 @@ export default function DashboardV2({
   return (
     <div className="min-h-screen flex flex-col bg-cream/40 text-ink antialiased">
       {/* Background visual accents */}
-      <Sakura count={14} />
+      <AuroraMotes count={14} />
 
       {/* 1. Global Sticky Top Header */}
       <TopHeader

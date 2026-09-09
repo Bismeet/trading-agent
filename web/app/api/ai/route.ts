@@ -156,49 +156,97 @@ function getEnvVarsForProvider(provider: string): string[] {
   }
 }
 
-function updateEnvFile(key: string, value: string) {
+/**
+ * MODEL-SAVE FIX: updateEnvFile now
+ *  1) CREATES .env when it is missing (previously it silently returned, so
+ *     saving model settings on a fresh checkout persisted nothing), and
+ *  2) reports success/failure so the save route can tell the UI the truth.
+ * Values are sanitized (newlines stripped) so a pasted key can't corrupt the file.
+ */
+function updateEnvFile(key: string, value: string): boolean {
   try {
+    const clean = String(value).replace(/[\r\n]+/g, "").trim();
     const envPath = path.join(ROOTDIR, ".env");
-    if (!fs.existsSync(envPath)) return;
-    const content = fs.readFileSync(envPath, "utf8");
-    const lines = content.split(/\r?\n/);
+    let lines: string[] = [];
+    if (fs.existsSync(envPath)) {
+      lines = fs.readFileSync(envPath, "utf8").split(/\r?\n/);
+    }
     let found = false;
     const newLines = lines.map((line) => {
       if (line.startsWith(`${key}=`) || line.startsWith(`#${key}=`)) {
         found = true;
-        return `${key}=${value}`;
+        return `${key}=${clean}`;
       }
       return line;
     });
     if (!found) {
-      newLines.push(`${key}=${value}`);
+      newLines.push(`${key}=${clean}`);
     }
     fs.writeFileSync(envPath, newLines.join("\n"), "utf8");
+    // Make the value visible to the running server process immediately.
+    process.env[key] = clean;
+    return true;
   } catch (err) {
     console.error("Failed to update .env:", err);
+    return false;
   }
 }
 
-function getStoredFallbackConfig() {
-  let provider = process.env.TRADINGAGENTS_LLM_PROVIDER || "meta";
-  let deep_think = process.env.TRADINGAGENTS_DEEP_THINK_LLM || "muse-spark-1.3-contributor";
-  let quick_think = process.env.TRADINGAGENTS_QUICK_THINK_LLM || deep_think;
+/** Robustly parse .env into a key→value map (handles comments, quotes, CRLF, values containing '='). */
+function parseEnvFile(): Record<string, string> {
+  const out: Record<string, string> = {};
   try {
     const envPath = path.join(ROOTDIR, ".env");
-    if (fs.existsSync(envPath)) {
-      const content = fs.readFileSync(envPath, "utf8");
-      for (const line of content.split(/\r?\n/)) {
-        const trimmed = line.trim();
-        if (trimmed.startsWith("TRADINGAGENTS_LLM_PROVIDER=")) {
-          provider = trimmed.split("=")[1].trim();
-        } else if (trimmed.startsWith("TRADINGAGENTS_DEEP_THINK_LLM=")) {
-          deep_think = trimmed.split("=")[1].trim();
-        } else if (trimmed.startsWith("TRADINGAGENTS_QUICK_THINK_LLM=")) {
-          quick_think = trimmed.split("=")[1].trim();
-        }
+    if (!fs.existsSync(envPath)) return out;
+    for (const line of fs.readFileSync(envPath, "utf8").split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eq = trimmed.indexOf("=");
+      if (eq <= 0) continue;
+      const key = trimmed.slice(0, eq).trim();
+      let value = trimmed.slice(eq + 1).trim();
+      if (
+        (value.startsWith('"') && value.endsWith('"') && value.length >= 2) ||
+        (value.startsWith("'") && value.endsWith("'") && value.length >= 2)
+      ) {
+        value = value.slice(1, -1);
       }
+      if (key && value) out[key] = value;
     }
-  } catch {}
+  } catch {
+    /* unreadable .env — treat as empty */
+  }
+  return out;
+}
+
+function getEnvValue(envFile: Record<string, string>, ...keys: string[]): string | undefined {
+  for (const key of keys) {
+    const fromFile = envFile[key];
+    if (fromFile) return fromFile;
+    const fromProcess = process.env[key];
+    if (fromProcess) return fromProcess;
+  }
+  return undefined;
+}
+
+/** Honest key status: a provider is "configured" only if one of its env vars actually holds a value. */
+function hasKeyForProvider(provider: string, envFile: Record<string, string>): boolean {
+  return getEnvVarsForProvider(provider).some(
+    (envVar) => Boolean(envFile[envVar]) || Boolean(process.env[envVar]),
+  );
+}
+
+function computeConfiguredProviders(envFile: Record<string, string>): string[] {
+  return Object.keys(SUPPORTED_PROVIDERS).filter((prov) => hasKeyForProvider(prov, envFile));
+}
+
+function getStoredFallbackConfig() {
+  const envFile = parseEnvFile();
+  const provider = (
+    getEnvValue(envFile, "TRADINGAGENTS_LLM_PROVIDER") || "meta"
+  ).toLowerCase();
+  const deep_think = getEnvValue(envFile, "TRADINGAGENTS_DEEP_THINK_LLM") || "muse-spark-1.3-contributor";
+  const quick_think = getEnvValue(envFile, "TRADINGAGENTS_QUICK_THINK_LLM") || deep_think;
   return { provider, deep_think, quick_think };
 }
 
@@ -226,6 +274,10 @@ export async function GET(req: Request) {
 
   // Fetch active config, catalog, and health from Tauric
   const fallback = getStoredFallbackConfig();
+  // MODEL-SAVE FIX: derive key status from actual env values instead of
+  // hardcoding isKeyConfigured=true and a fake configuredProviders list.
+  const envFile = parseEnvFile();
+  const configuredProviders = computeConfiguredProviders(envFile);
   try {
     const [healthRes, configRes, catalogRes] = await Promise.all([
       fetch(`${baseUrl}/api/health`, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(6000) }).catch(() => null),
@@ -239,8 +291,8 @@ export async function GET(req: Request) {
       model: fallback.deep_think,
       deep_think_llm: fallback.deep_think,
       quick_think_llm: fallback.quick_think,
-      isKeyConfigured: true,
-      configuredProviders: ["meta", "google", "openai", "nvidia", "openrouter"],
+      isKeyConfigured: hasKeyForProvider(fallback.provider, envFile),
+      configuredProviders,
       status: isHealthy ? "online" : "offline",
     };
 
@@ -295,8 +347,8 @@ export async function GET(req: Request) {
           model: fallback.deep_think,
           deep_think_llm: fallback.deep_think,
           quick_think_llm: fallback.quick_think,
-          isKeyConfigured: true,
-          configuredProviders: ["meta"],
+          isKeyConfigured: hasKeyForProvider(fallback.provider, envFile),
+          configuredProviders,
           status: "offline",
         },
         supportedProviders: SUPPORTED_PROVIDERS,
@@ -348,51 +400,107 @@ export async function POST(req: Request) {
 
     if (action === "save_settings") {
       const { provider, model, deep_think_llm, quick_think_llm, apiKey } = body;
-      const prov = String(provider || "google").toLowerCase().trim();
-      const deepMdl = String(deep_think_llm || model || "gemini-2.5-flash").trim();
+      // MODEL-SAVE FIX: default provider matches the UI default (meta), not "google".
+      const prov = String(provider || "meta").toLowerCase().trim();
+      const deepMdl = String(deep_think_llm || model || "").trim();
       const quickMdl = String(quick_think_llm || deepMdl).trim();
 
-      // 1. If an API key is provided, persist it server-side to Tauric and .env
-      if (apiKey && String(apiKey).trim().length > 0) {
-        const cleanKey = String(apiKey).trim();
-        await fetch(`${baseUrl}/api/config/keys`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ provider: prov, api_key: cleanKey }),
-        }).catch((e) => console.warn("Tauric /api/config/keys error:", e));
-
-        const envVars = getEnvVarsForProvider(prov);
-        for (const envVar of envVars) {
-          updateEnvFile(envVar, cleanKey);
-        }
+      if (!prov || !deepMdl) {
+        return NextResponse.json(
+          { ok: false, error: "Provider and model are required to save settings" },
+          { status: 200 }
+        );
       }
 
-      // 2. Save preferences in Tauric
-      await fetch(`${baseUrl}/api/config/preferences`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          llm_provider: prov,
-          deep_think_llm: deepMdl,
-          quick_think_llm: quickMdl,
-          thinking_mode: "medium",
-        }),
-      }).catch((e) => console.warn("Tauric /api/config/preferences error:", e));
+      const warnings: string[] = [];
 
-      // 3. Update TRADINGAGENTS_LLM_PROVIDER, TRADINGAGENTS_DEEP_THINK_LLM, and TRADINGAGENTS_QUICK_THINK_LLM in .env
-      updateEnvFile("TRADINGAGENTS_LLM_PROVIDER", prov);
-      updateEnvFile("TRADINGAGENTS_DEEP_THINK_LLM", deepMdl);
-      updateEnvFile("TRADINGAGENTS_QUICK_THINK_LLM", quickMdl);
+      // 1. If an API key is provided, persist it server-side to Tauric and .env
+      let keySavedToTauric = false;
+      let keySavedToEnv = false;
+      if (apiKey && String(apiKey).trim().length > 0) {
+        const cleanKey = String(apiKey).trim();
+        try {
+          const keysRes = await fetch(`${baseUrl}/api/config/keys`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ provider: prov, api_key: cleanKey }),
+            signal: AbortSignal.timeout(8000),
+          });
+          keySavedToTauric = keysRes.ok;
+          if (!keysRes.ok) warnings.push(`Tauric key store rejected the key (HTTP ${keysRes.status})`);
+        } catch (e) {
+          console.warn("Tauric /api/config/keys error:", e);
+          warnings.push("Tauric key store unreachable");
+        }
+
+        const envVars = getEnvVarsForProvider(prov);
+        keySavedToEnv = envVars.map((envVar) => updateEnvFile(envVar, cleanKey)).every(Boolean);
+      }
+
+      // 2. Save preferences in Tauric — and verify the save actually landed.
+      let prefsSavedToTauric = false;
+      try {
+        const prefsRes = await fetch(`${baseUrl}/api/config/preferences`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            llm_provider: prov,
+            deep_think_llm: deepMdl,
+            quick_think_llm: quickMdl,
+            thinking_mode: "medium",
+          }),
+          signal: AbortSignal.timeout(10000),
+        });
+        prefsSavedToTauric = prefsRes.ok;
+        if (!prefsRes.ok) warnings.push(`Tauric preferences rejected the save (HTTP ${prefsRes.status})`);
+      } catch (e) {
+        console.warn("Tauric /api/config/preferences error:", e);
+        warnings.push("Tauric preferences unreachable");
+      }
+
+      // 3. Update TRADINGAGENTS_LLM_PROVIDER, TRADINGAGENTS_DEEP_THINK_LLM, and
+      //    TRADINGAGENTS_QUICK_THINK_LLM in .env (created on demand) so the
+      //    engine picks the selection up on its next start.
+      const prefsSavedToEnv =
+        updateEnvFile("TRADINGAGENTS_LLM_PROVIDER", prov) &&
+        updateEnvFile("TRADINGAGENTS_DEEP_THINK_LLM", deepMdl) &&
+        updateEnvFile("TRADINGAGENTS_QUICK_THINK_LLM", quickMdl);
+
+      // MODEL-SAVE FIX: previously this returned ok:true unconditionally, so a
+      // save that reached neither Tauric nor .env still looked like a success.
+      if (!prefsSavedToTauric && !prefsSavedToEnv) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "Failed to save settings: engine unreachable and .env could not be written",
+            warnings,
+          },
+          { status: 200 }
+        );
+      }
+
+      // Honest key status: only claim a key exists if one was just saved or already is.
+      const envFile = parseEnvFile();
+      const isKeyConfigured =
+        keySavedToTauric || keySavedToEnv || hasKeyForProvider(prov, envFile);
+
+      let message = `AI settings updated: ${prov.toUpperCase()} (Deep: ${deepMdl}, Quick: ${quickMdl})`;
+      if (!prefsSavedToTauric && prefsSavedToEnv) {
+        message += " — engine offline, written to .env (applies on next engine restart)";
+      }
 
       return NextResponse.json(
         {
           ok: true,
-          message: `AI settings updated: ${prov.toUpperCase()} (Deep: ${deepMdl}, Quick: ${quickMdl})`,
+          message,
           provider: prov,
           model: deepMdl,
           deep_think_llm: deepMdl,
           quick_think_llm: quickMdl,
-          isKeyConfigured: true,
+          isKeyConfigured,
+          configuredProviders: computeConfiguredProviders(envFile),
+          degraded: !prefsSavedToTauric,
+          warnings,
         },
         { status: 200 }
       );

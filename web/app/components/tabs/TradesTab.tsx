@@ -5,6 +5,18 @@ import { usd, signed, tone, timeAgo } from "../../lib/format";
 import { StatusBadge } from "../ui/StatusBadge";
 import { Mascot } from "../visuals";
 import { SectionExplainer } from "../ui/SectionExplainer";
+import { usePersistedState } from "../../lib/usePersistedState";
+
+const SIDE_FILTERS = ["all", "long", "short"] as const;
+const OP_FILTERS = ["all", "close"] as const;
+
+function isSideFilter(value: unknown): value is string {
+  return typeof value === "string" && (SIDE_FILTERS as readonly string[]).includes(value);
+}
+
+function isOpFilter(value: unknown): value is string {
+  return typeof value === "string" && (OP_FILTERS as readonly string[]).includes(value);
+}
 
 interface TradesTabProps {
   v2: any;
@@ -19,8 +31,17 @@ export function TradesTab({
 }: TradesTabProps) {
   const trades: any[] = v2.trades ?? [];
   const [search, setSearch] = useState("");
-  const [sideFilter, setSideFilter] = useState<string>("all");
-  const [opFilter, setOpFilter] = useState<string>("all");
+  // UI-state persistence: keep the user's filter choices across reloads.
+  const [sideFilter, setSideFilter] = usePersistedState<string>(
+    "trades.sideFilter",
+    "all",
+    isSideFilter,
+  );
+  const [opFilter, setOpFilter] = usePersistedState<string>(
+    "trades.opFilter",
+    "all",
+    isOpFilter,
+  );
 
   const filtered = trades.filter((t) => {
     const sym = String(t.symbol || "").toLowerCase();

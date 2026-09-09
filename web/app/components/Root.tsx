@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import DashboardV2 from "./DashboardV2";
-import { Mascot, Sakura } from "./visuals";
+import { Mascot, AuroraMotes } from "./visuals";
 
 // [RELIABILITY F05] robust poller: every poll is a FULL snapshot (backend owns
 // execution; refresh/reconnect just re-reads files, never restarts anything).
@@ -64,7 +64,7 @@ export default function Root() {
   if (!data) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-        <Sakura />
+        <AuroraMotes />
         <Mascot size={72} mood="happy" />
         <p className="font-jp text-inksoft">warming up the bot…</p>
         <p className="text-xs tnum text-inksoft" role="status">
