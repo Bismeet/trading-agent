@@ -1,0 +1,173 @@
+{
+  "totals": {
+    "trades": 70,
+    "vetoes": 0,
+    "net_pnl": 36.2423,
+    "gross_pnl": 35.0415,
+    "fees": 5.6594,
+    "slippage": 5.7047,
+    "funding": 6.8601,
+    "finalEquity": 143.1024,
+    "returnPct": 43.1024,
+    "maxDrawdownPct": 36.2161
+  },
+  "perStrategy": {
+    "tsmom": {
+      "n": 23,
+      "wins": 8,
+      "losses": 15,
+      "winRate": 0.34782608695652173,
+      "avgWinR": 1.7388016707950293,
+      "avgLossR": 1.2099273744201176,
+      "expectancyR": -0.1842824891278925,
+      "profitFactor": 0.7664599633801483,
+      "sqn": -0.5647406490818236,
+      "wilsonLb": 0.18811054636982238,
+      "breakevenWr": 0.41032165243647817,
+      "tStat": -0.5647406490818236,
+      "dsr": {
+        "sr": -0.118,
+        "dsr": 0.062,
+        "sr0": 0.224,
+        "pass": false
+      },
+      "symbols": 5,
+      "avg_hold_h": 194.09,
+      "net_usd": -22.1734,
+      "fees_usd": 1.8238,
+      "slippage_usd": 1.8384,
+      "funding_usd": 4.2984,
+      "exit_mix": {
+        "stop-loss": 13,
+        "time-stop": 5,
+        "take-profit": 5
+      }
+    },
+    "rsi2dip": {
+      "n": 27,
+      "wins": 16,
+      "losses": 11,
+      "winRate": 0.5925925925925926,
+      "avgWinR": 0.5621263282998451,
+      "avgLossR": 0.5919289671000644,
+      "expectancyR": 0.09195565239617827,
+      "profitFactor": 1.3813115105932052,
+      "sqn": 0.6007589576166477,
+      "wilsonLb": 0.4072638305536409,
+      "breakevenWr": 0.5129121364110599,
+      "tStat": 0.6007589576166477,
+      "dsr": {
+        "sr": 0.116,
+        "dsr": 0.333,
+        "sr0": 0.206,
+        "pass": false
+      },
+      "symbols": 5,
+      "avg_hold_h": 69.33,
+      "net_usd": 0.2832,
+      "fees_usd": 2.2056,
+      "slippage_usd": 2.2236,
+      "funding_usd": 1.8618,
+      "exit_mix": {
+        "time-stop": 24,
+        "take-profit": 1,
+        "stop-loss": 2
+      }
+    },
+    "donchian": {
+      "n": 14,
+      "wins": 12,
+      "losses": 2,
+      "winRate": 0.8571428571428571,
+      "avgWinR": 1.189387881463374,
+      "avgLossR": 0.15433174129897165,
+      "expectancyR": 0.9974279353544675,
+      "profitFactor": 46.24017864838149,
+      "sqn": 4.22953965000346,
+      "wilsonLb": 0.600580922361363,
+      "breakevenWr": 0.11485412483722225,
+      "tStat": 4.22953965000346,
+      "dsr": {
+        "sr": 1.13,
+        "dsr": 0.999,
+        "sr0": 0.292,
+        "pass": true
+      },
+      "symbols": 5,
+      "avg_hold_h": 198.86,
+      "net_usd": 61.2736,
+      "fees_usd": 1.196,
+      "slippage_usd": 1.2057,
+      "funding_usd": 1.2358,
+      "exit_mix": {
+        "time-stop": 9,
+        "take-profit": 5
+      }
+    },
+    "mom_trend": {
+      "n": 6,
+      "wins": 1,
+      "losses": 5,
+      "winRate": 0.16666666666666666,
+      "avgWinR": 0.89868061012339,
+      "avgLossR": 0.3289493175047048,
+      "expectancyR": -0.12434432956668896,
+      "profitFactor": 0.5463945734500797,
+      "sqn": -0.46871629742457305,
+      "wilsonLb": 0.030052585871730285,
+      "breakevenWr": 0.26795478841108755,
+      "tStat": -0.46871629742457305,
+      "dsr": {
+        "sr": 0,
+        "dsr": 0,
+        "sr0": 0,
+        "pass": false
+      },
+      "symbols": 4,
+      "avg_hold_h": 116,
+      "net_usd": -3.1411,
+      "fees_usd": 0.4339,
+      "slippage_usd": 0.4371,
+      "funding_usd": -0.5358,
+      "exit_mix": {
+        "stop-loss": 1,
+        "time-stop": 1,
+        "backtest-end": 4
+      }
+    }
+  },
+  "config": {
+    "capital": 100,
+    "lev": 5,
+    "topN": 2,
+    "gate": true,
+    "council": true,
+    "fees": true,
+    "funding8h": 0.0001,
+    "markEma": 1,
+    "maxPos": 10,
+    "strategies": [
+      "tsmom",
+      "donchian",
+      "rsi2dip",
+      "mom_trend"
+    ],
+    "symbols": [
+      "BTC-USD",
+      "ETH-USD",
+      "SOL-USD",
+      "XRP-USD",
+      "DOGE-USD"
+    ],
+    "hold": {
+      "tsmom": 336,
+      "donchian": 240,
+      "rsi2dip": 72,
+      "mom_trend": 336
+    },
+    "out": "research/results/backtest_2026-09-10_E4_gate.json",
+    "selftest": false,
+    "synthetic": false,
+    "bars": 365
+  }
+}
