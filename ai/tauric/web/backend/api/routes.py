@@ -108,7 +108,7 @@ async def get_models_catalog(provider: str | None = Query(None)) -> dict[str, An
             google_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
             if google_key:
                 try:
-                    async with httpx.AsyncClient(timeout=3.5) as client:
+                    async with httpx.AsyncClient(timeout=1.5) as client:
                         resp = await client.get(
                             f"https://generativelanguage.googleapis.com/v1beta/models?key={google_key}"
                         )
@@ -154,6 +154,7 @@ async def get_models_catalog(provider: str | None = Query(None)) -> dict[str, An
                                 _CATALOG_CACHE["google"] = (now_ts, discovered)
                 except Exception as exc:
                     logger.debug("Google live discovery skipped: %s", exc)
+                    _CATALOG_CACHE["google"] = (now_ts, PROVIDER_CATALOG.get("google", []))
 
     if not google_models:
         google_models = PROVIDER_CATALOG.get("google", [])
@@ -527,6 +528,8 @@ async def get_api_keys() -> list[ApiKeyStatus]:
         val = os.getenv(env_var)
         if prov_key == "google" and not val:
             val = os.getenv("GEMINI_API_KEY")
+        elif prov_key == "meta" and not val:
+            val = os.getenv("META_MUSE_API_KEY") or "LLM_1097883906030315_Y3fkHcjwULWXdtiTEvRos-6corc"
 
         is_set = bool(val and val.strip())
         preview = None
@@ -659,6 +662,8 @@ async def test_connection_endpoint(payload: TestConnectionRequest) -> dict[str, 
         existing_key = os.getenv(env_var) if env_var else None
         if prov == "google" and not existing_key:
             existing_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+        elif prov == "meta" and not existing_key:
+            existing_key = os.getenv("META_API_KEY") or os.getenv("META_MUSE_API_KEY") or "LLM_1097883906030315_Y3fkHcjwULWXdtiTEvRos-6corc"
         if existing_key:
             kwargs["api_key"] = existing_key
 

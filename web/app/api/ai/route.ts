@@ -179,6 +179,29 @@ function updateEnvFile(key: string, value: string) {
   }
 }
 
+function getStoredFallbackConfig() {
+  let provider = process.env.TRADINGAGENTS_LLM_PROVIDER || "meta";
+  let deep_think = process.env.TRADINGAGENTS_DEEP_THINK_LLM || "muse-spark-1.3-contributor";
+  let quick_think = process.env.TRADINGAGENTS_QUICK_THINK_LLM || deep_think;
+  try {
+    const envPath = path.join(ROOTDIR, ".env");
+    if (fs.existsSync(envPath)) {
+      const content = fs.readFileSync(envPath, "utf8");
+      for (const line of content.split(/\r?\n/)) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith("TRADINGAGENTS_LLM_PROVIDER=")) {
+          provider = trimmed.split("=")[1].trim();
+        } else if (trimmed.startsWith("TRADINGAGENTS_DEEP_THINK_LLM=")) {
+          deep_think = trimmed.split("=")[1].trim();
+        } else if (trimmed.startsWith("TRADINGAGENTS_QUICK_THINK_LLM=")) {
+          quick_think = trimmed.split("=")[1].trim();
+        }
+      }
+    }
+  } catch {}
+  return { provider, deep_think, quick_think };
+}
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const runId = searchParams.get("run_id");
@@ -189,7 +212,7 @@ export async function GET(req: Request) {
     try {
       const res = await fetch(`${baseUrl}/api/analysis/${encodeURIComponent(runId)}`, {
         headers: { Accept: "application/json" },
-        signal: AbortSignal.timeout(3000),
+        signal: AbortSignal.timeout(5000),
       });
       if (!res.ok) {
         return NextResponse.json({ ok: false, status: res.status, error: res.statusText }, { status: 200 });
@@ -202,42 +225,51 @@ export async function GET(req: Request) {
   }
 
   // Fetch active config, catalog, and health from Tauric
+  const fallback = getStoredFallbackConfig();
   try {
     const [healthRes, configRes, catalogRes] = await Promise.all([
-      fetch(`${baseUrl}/api/health`, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(2500) }).catch(() => null),
-      fetch(`${baseUrl}/api/config/active`, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(2500) }).catch(() => null),
-      fetch(`${baseUrl}/api/config/models-catalog`, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(3500) }).catch(() => null),
+      fetch(`${baseUrl}/api/health`, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(6000) }).catch(() => null),
+      fetch(`${baseUrl}/api/config/active`, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(6000) }).catch(() => null),
+      fetch(`${baseUrl}/api/config/models-catalog`, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(6000) }).catch(() => null),
     ]);
 
     const isHealthy = healthRes?.ok ?? false;
     let activeConfig: any = {
-      provider: "google",
-      model: "gemini-2.5-flash",
-      deep_think_llm: "gemini-2.5-flash",
-      quick_think_llm: "gemini-2.5-flash-lite",
-      isKeyConfigured: false,
-      configuredProviders: [],
+      provider: fallback.provider,
+      model: fallback.deep_think,
+      deep_think_llm: fallback.deep_think,
+      quick_think_llm: fallback.quick_think,
+      isKeyConfigured: true,
+      configuredProviders: ["meta", "google", "openai", "nvidia", "openrouter"],
       status: isHealthy ? "online" : "offline",
     };
 
     if (configRes?.ok) {
-      const cData = await configRes.json();
-      activeConfig = {
-        provider: cData.provider || "google",
-        model: cData.model || cData.deep_think_llm || "gemini-2.5-flash",
-        deep_think_llm: cData.deep_think_llm || cData.model || "gemini-2.5-flash",
-        quick_think_llm: cData.quick_think_llm || "gemini-2.5-flash-lite",
-        isKeyConfigured: Boolean(cData.isKeyConfigured),
-        configuredProviders: cData.configuredProviders || [],
-        status: isHealthy ? "online" : "offline",
-      };
+      try {
+        const cData = await configRes.json();
+        activeConfig = {
+          provider: cData.provider || fallback.provider,
+          model: cData.model || cData.deep_think_llm || fallback.deep_think,
+          deep_think_llm: cData.deep_think_llm || cData.model || fallback.deep_think,
+          quick_think_llm: cData.quick_think_llm || fallback.quick_think,
+          isKeyConfigured: Boolean(cData.isKeyConfigured),
+          configuredProviders: cData.configuredProviders || [],
+          status: isHealthy ? "online" : "offline",
+        };
+      } catch (err) {
+        console.warn("Could not parse configRes JSON:", err);
+      }
     }
 
     let catalog: Record<string, ModelMetadata[]> = {};
     if (catalogRes?.ok) {
-      const catData = await catalogRes.json();
-      if (catData.catalog) {
-        catalog = catData.catalog;
+      try {
+        const catData = await catalogRes.json();
+        if (catData?.catalog) {
+          catalog = catData.catalog;
+        }
+      } catch (err) {
+        console.warn("Could not parse catalogRes JSON:", err);
       }
     }
 
@@ -259,12 +291,12 @@ export async function GET(req: Request) {
         available: false,
         baseUrl,
         config: {
-          provider: "google",
-          model: "gemini-2.5-flash",
-          deep_think_llm: "gemini-2.5-flash",
-          quick_think_llm: "gemini-2.5-flash-lite",
-          isKeyConfigured: false,
-          configuredProviders: [],
+          provider: fallback.provider,
+          model: fallback.deep_think,
+          deep_think_llm: fallback.deep_think,
+          quick_think_llm: fallback.quick_think,
+          isKeyConfigured: true,
+          configuredProviders: ["meta"],
           status: "offline",
         },
         supportedProviders: SUPPORTED_PROVIDERS,

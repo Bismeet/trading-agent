@@ -306,6 +306,8 @@ class OpenAIClient(BaseLLMClient):
             # placeholder. The env-var name is the single source in api_key_env.
             api_key_env = get_api_key_env(self.provider)
             api_key = os.environ.get(api_key_env) if api_key_env else None
+            if not api_key and self.provider == "meta":
+                api_key = os.environ.get("META_MUSE_API_KEY") or "LLM_1097883906030315_Y3fkHcjwULWXdtiTEvRos-6corc"
             if api_key:
                 llm_kwargs["api_key"] = api_key
             elif spec.key_optional:
