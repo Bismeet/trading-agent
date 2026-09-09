@@ -12,6 +12,7 @@
     "web": "npm --prefix web run dev",
     "start:all": "node scripts/start_all.mjs",
     "stop:all": "node scripts/stop_all.mjs",
-    "test:ai": ".venv\\Scripts\\pytest.exe ai/tauric/tests -v"
+    "test:ai": ".venv\\Scripts\\pytest.exe ai/tauric/tests -v",
+    "test:run": "node scripts/test_run.mjs"
   }
 }
