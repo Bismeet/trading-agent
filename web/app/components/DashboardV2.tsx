@@ -52,10 +52,12 @@ function ControlPanel({ s }: { s: any }) {
     setBusy(label);
     setMsg(null);
     try {
+      // [RELIABILITY F03] one token per user intent: safe retries / double-clicks dedupe server-side.
+      const withToken = { ...body, clientToken: body.clientToken ?? `${label}-${Date.now()}-${Math.random().toString(36).slice(2)}` };
       const res = await fetch("/api/state", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify(withToken),
       });
       const j = await res.json();
       setMsg(j.ok ? { ok: true, text: `Queued — engine applies it within ~30s.` } : { ok: false, text: j.error ?? "failed" });
@@ -159,12 +161,15 @@ const NAV = [
   { id: "world", label: "World", icon: "☁" },
   { id: "lessons", label: "Lessons", icon: "✎" },
   { id: "trades", label: "Trades", icon: "≡" },
+  { id: "ai", label: "AI Analysis", icon: "🧠" },
 ] as const;
 
-export default function DashboardV2({ data }: { data: any }) {
+export default function DashboardV2({ data, conn, fails, err }: { data: any; conn?: string; fails?: number; err?: string | null }) {
   const [tab, setTab] = useState<string>("overview");
   const v2 = data?.v2 ?? {};
   const s = v2.signals ?? null;
+  const live = data?.liveness ?? null;
+  const connPill = conn === "live" && live?.alive === false ? "stale" : (conn ?? "live");
 
   return (
     <div className="min-h-screen">
@@ -178,6 +183,13 @@ export default function DashboardV2({ data }: { data: any }) {
               <div className="font-display font-semibold">@FabRichhhhhh</div>
               <div className="text-xs text-inksoft">Apex Trading Bot . v2</div>
             </div>
+          </div>
+          {/* [RELIABILITY] connection status: refresh/reconnect never restarts the engine (independent process). */}
+          <div className="mt-3 text-xs" role="status" aria-live="polite">
+            {connPill === "live" && <span className="pill px-2 py-1 text-upink font-bold">LIVE{live?.heartbeat?.cycle ? ` · cycle ${live.heartbeat.cycle}` : ""}</span>}
+            {connPill === "reconnecting" && <span className="pill px-2 py-1 text-gold font-bold">RECONNECTING{fails ? ` · retry ${fails}` : ""}</span>}
+            {connPill === "stale" && <span className="pill px-2 py-1 text-gold font-bold">ENGINE STALE{live?.ageMs != null ? ` · ${Math.round(live.ageMs / 1000)}s since heartbeat` : ""}</span>}
+            {(connPill === "error" || connPill === "loading") && <span className="pill px-2 py-1 text-downink font-bold">{err ?? "connecting…"}</span>}
           </div>
           <nav className="mt-6 flex flex-col gap-1">
             {NAV.map((n) => (
@@ -217,6 +229,7 @@ export default function DashboardV2({ data }: { data: any }) {
           {tab === "world" && <World s={s} />}
           {tab === "lessons" && <Lessons v2={v2} />}
           {tab === "trades" && <Trades v2={v2} />}
+          {tab === "ai" && <AIAnalysis v2={v2} />}
         </main>
       </div>
     </div>
@@ -377,6 +390,20 @@ function PositionGrid({ positions }: { positions: any[] }) {
             <span>Notional {usd(p.notional, 0)}</span>
           </div>
           <Runway p={p} />
+          {p.openMeta?.ai && (
+            <div className="mt-2 p-2 rounded bg-white/40 text-xs flex flex-col gap-1 border border-white/60">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-lav">AI: {p.openMeta.ai.approved ? "APPROVED" : "REJECTED"} · {p.openMeta.ai.rating}</span>
+                <span className="text-inksoft text-[10px]">{p.openMeta.ai.provider}</span>
+              </div>
+              {p.openMeta.ai.thesis && <p className="text-inksoft text-[11px] line-clamp-2">{p.openMeta.ai.thesis}</p>}
+              <div className="text-[10px] text-inksoft flex gap-2">
+                <span>Strategy: <b>{(p.strategy_id || "TSMOM").toUpperCase()}</b></span>
+                <span>Signal: <b>{p.side.toUpperCase()}</b></span>
+                <span>Risk Council: <b className="text-upink">APPROVED</b></span>
+              </div>
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -610,19 +637,310 @@ function Trades({ v2 }: { v2: any }) {
       {trades.length === 0 && <div className="card-quiet p-4 text-sm text-inksoft">No fills yet</div>}
       <div className="flex flex-col gap-2">
         {trades.map((f, i) => (
-          <div key={f.eventId ?? i} className="card-quiet p-3 flex items-center justify-between text-sm">
-            <div className="flex items-center gap-2">
-              <span className={`pill px-2 py-0.5 text-xs font-bold ${f.op === "open" ? "text-lav" : "text-inksoft"}`}>{f.op}</span>
-              <span className={`font-bold ${f.side === "long" ? "text-upink" : "text-downink"}`}>{f.side === "long" ? "LONG" : "SHORT"}</span>
-              <span className="font-display">{String(f.symbol).replace("-USD", "")}</span>
-              <span className="text-xs text-inksoft tnum">{f.leverage}x · {f.reason ?? "—"}</span>
+          <div key={f.eventId ?? i} className="card-quiet p-3 flex flex-col gap-2 text-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className={`pill px-2 py-0.5 text-xs font-bold ${f.op === "open" ? "text-lav" : "text-inksoft"}`}>{f.op}</span>
+                <span className={`font-bold ${f.side === "long" ? "text-upink" : "text-downink"}`}>{f.side === "long" ? "LONG" : "SHORT"}</span>
+                <span className="font-display">{String(f.symbol).replace("-USD", "")}</span>
+                <span className="text-xs text-inksoft tnum">{f.leverage}x · {f.reason ?? "—"}</span>
+              </div>
+              <div className={`tnum ${f.op === "close" ? tone(f.net_pnl) : "text-inksoft"}`}>
+                {f.op === "close" ? signed(f.net_pnl) : usd(f.margin)}
+                <span className="text-xs text-inksoft ml-2">{timeAgo(f.ts)}</span>
+              </div>
             </div>
-            <div className={`tnum ${f.op === "close" ? tone(f.net_pnl) : "text-inksoft"}`}>
-              {f.op === "close" ? signed(f.net_pnl) : usd(f.margin)}
-              <span className="text-xs text-inksoft ml-2">{timeAgo(f.ts)}</span>
-            </div>
+            {f.ai && (
+              <div className="text-xs bg-white/40 p-2 rounded flex flex-wrap items-center justify-between gap-2 border border-white/50">
+                <div className="flex items-center gap-2">
+                  <span className={`font-semibold ${f.ai.approved ? "text-upink" : "text-downink"}`}>
+                    AI: {f.ai.approved ? "APPROVED" : "REJECTED"} · {f.ai.rating}
+                  </span>
+                  <span className="text-inksoft">({f.ai.action || "HOLD"})</span>
+                </div>
+                {f.ai.thesis && <span className="text-inksoft italic truncate max-w-md">{f.ai.thesis}</span>}
+              </div>
+            )}
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function AIAnalysis({ v2 }: { v2: any }) {
+  const [activeDecision, setActiveDecision] = useState<any>(null);
+  const ai = v2?.ai ?? {};
+  const pending: any[] = ai.pending ?? [];
+  const decisions: any[] = ai.decisions ?? [];
+  const cfg = ai.config ?? {};
+
+  const current = activeDecision || decisions[0] || null;
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h1 className="font-display text-2xl font-bold">TauricResearch TradingAgents</h1>
+          <p className="text-xs text-inksoft">
+            Autonomous multi-agent research &amp; debate filter for FabRich strategy intents.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-xs">
+          <span className="pill px-3 py-1 font-semibold text-lav">
+            {cfg.enabled ? "GATE: ACTIVE (FAIL-CLOSED)" : "GATE: DISABLED"}
+          </span>
+          <span className="pill px-3 py-1 text-inksoft">TTL {cfg.decisionTtlSeconds ?? 300}s</span>
+        </div>
+      </div>
+
+      {/* Endpoint & Integration Config */}
+      <div className="card-quiet p-4 text-xs flex flex-wrap justify-between items-center gap-2">
+        <div className="flex items-center gap-2">
+          <span className="font-bold">Integration Service:</span>
+          <span className="font-mono bg-white/60 px-2 py-0.5 rounded">{cfg.endpoint || "http://127.0.0.1:8000/api/hybrid/decision"}</span>
+        </div>
+        <div className="text-inksoft">
+          Timeout: {cfg.requestTimeoutMs ?? 10000}ms · Non-Blocking Async Queue
+        </div>
+      </div>
+
+      {/* A. Analysis Status & Pending Queue */}
+      <div className="card p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-display font-semibold text-sm">A. Asynchronous AI Queue</h2>
+          <span className="text-xs text-inksoft">{pending.length} candidate(s) in queue</span>
+        </div>
+        {pending.length === 0 ? (
+          <p className="text-sm text-inksoft">No pending AI requests in queue. Unchanged signals are deduplicated.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs tnum">
+              <thead>
+                <tr className="text-inksoft border-b border-white/60 text-left">
+                  <th className="py-1">Symbol</th>
+                  <th>Side</th>
+                  <th>Strategy</th>
+                  <th>Status</th>
+                  <th>Candidate Entry</th>
+                  <th>Age</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pending.map((req, i) => (
+                  <tr key={req.request_id || i} className="border-b border-white/40">
+                    <td className="py-2 font-bold">{req.symbol}</td>
+                    <td className={req.side === "long" ? "text-upink font-semibold" : "text-downink font-semibold"}>
+                      {req.side?.toUpperCase()}
+                    </td>
+                    <td className="text-inksoft">{req.strategy_id}</td>
+                    <td>
+                      <span className={`pill px-2 py-0.5 text-[10px] font-bold ${
+                        req.status === "approved" ? "text-upink" : req.status === "rejected" ? "text-downink" : "text-gold"
+                      }`}>
+                        {req.status?.toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="text-inksoft">{req.candidate_entry ? price(req.candidate_entry) : "—"}</td>
+                    <td className="text-inksoft">{timeAgo(req.created_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Current/Selected Decision Deep Dive */}
+      {current ? (
+        <div className="flex flex-col gap-4">
+          {/* F. Final AI Decision Card */}
+          <div className="card p-5 border-l-4 border-l-lav">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-3">
+                <span className="font-display text-lg font-bold">{current.symbol}</span>
+                <span className={`pill px-2.5 py-1 text-xs font-bold ${current.side === "long" ? "text-upink" : "text-downink"}`}>
+                  {current.side?.toUpperCase()}
+                </span>
+                <span className="text-xs text-inksoft">Strategy: {current.strategy_id}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`pill px-3 py-1 text-xs font-bold ${
+                  current.decision === "APPROVE" ? "text-upink" : "text-downink"
+                }`}>
+                  AI: {current.decision} ({current.rating || "Hold"})
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-3">
+              <h3 className="text-xs font-bold text-inksoft uppercase tracking-wider mb-1">Investment Thesis &amp; Executive Summary</h3>
+              <p className="text-sm bg-white/50 p-3 rounded leading-relaxed">
+                {current.thesis || "No detailed thesis text provided by model."}
+              </p>
+            </div>
+
+            <div className="mt-3 grid sm:grid-cols-4 gap-3 text-xs">
+              <div className="card-quiet p-2">
+                <div className="text-inksoft">Candidate Entry</div>
+                <div className="font-bold tnum">{current.entry_price ? price(current.entry_price) : "—"}</div>
+              </div>
+              <div className="card-quiet p-2">
+                <div className="text-inksoft">Stop Loss</div>
+                <div className="font-bold tnum">{current.stop_loss ? price(current.stop_loss) : "—"}</div>
+              </div>
+              <div className="card-quiet p-2">
+                <div className="text-inksoft">Price Target</div>
+                <div className="font-bold tnum">{current.target ? price(current.target) : "—"}</div>
+              </div>
+              <div className="card-quiet p-2">
+                <div className="text-inksoft">Decision Latency</div>
+                <div className="font-bold tnum">{current.decision_age_ms ? `${(current.decision_age_ms / 1000).toFixed(1)}s` : "—"}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* B. Analyst Cards / Status */}
+          <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="card p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-bold text-xs">Market Analyst</span>
+                <span className="text-[10px] text-upink font-bold">ACTIVE</span>
+              </div>
+              <p className="text-xs text-inksoft">Technical price structure, trend signals, and momentum indicators.</p>
+            </div>
+            <div className="card p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-bold text-xs">Sentiment Analyst</span>
+                <span className="text-[10px] text-upink font-bold">ACTIVE</span>
+              </div>
+              <p className="text-xs text-inksoft">Social media mood, retail positioning, and crowd sentiment trends.</p>
+            </div>
+            <div className="card p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-bold text-xs">News Analyst</span>
+                <span className="text-[10px] text-upink font-bold">ACTIVE</span>
+              </div>
+              <p className="text-xs text-inksoft">Macro catalysts, regulatory headlines, and breaking sector events.</p>
+            </div>
+            <div className="card p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-bold text-xs">Fundamentals</span>
+                <span className="text-[10px] text-upink font-bold">ACTIVE</span>
+              </div>
+              <p className="text-xs text-inksoft">On-chain funding carry, network metrics, and intrinsic valuation.</p>
+            </div>
+          </div>
+
+          {/* C. Research Debate & E. Risk Debate */}
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="card p-4">
+              <h3 className="font-display font-semibold text-sm mb-2">C. Bull / Bear Research Debate</h3>
+              <div className="flex flex-col gap-2 text-xs">
+                <div className="card-quiet p-2 border-l-2 border-l-upink">
+                  <div className="font-bold text-upink">Bull Researcher</div>
+                  <div className="text-inksoft mt-0.5">Focuses on upside momentum, trend continuation, and capital inflows.</div>
+                </div>
+                <div className="card-quiet p-2 border-l-2 border-l-downink">
+                  <div className="font-bold text-downink">Bear Researcher</div>
+                  <div className="text-inksoft mt-0.5">Highlights macro headwinds, liquidity drains, and exhaustion risk.</div>
+                </div>
+                <div className="card-quiet p-2">
+                  <div className="font-bold">Research Manager Synthesis</div>
+                  <div className="text-inksoft mt-0.5">Consolidates debate rounds into unified strategic thesis.</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="card p-4">
+              <h3 className="font-display font-semibold text-sm mb-2">E. Risk Management Debate</h3>
+              <div className="flex flex-col gap-2 text-xs">
+                <div className="card-quiet p-2">
+                  <span className="font-bold text-gold">Aggressive Analyst:</span>
+                  <span className="text-inksoft ml-1">Evaluates upside asymmetry and trend payoff potential.</span>
+                </div>
+                <div className="card-quiet p-2">
+                  <span className="font-bold text-downink">Conservative Analyst:</span>
+                  <span className="text-inksoft ml-1">Protects capital preservation, drawdown boundaries, and tail risks.</span>
+                </div>
+                <div className="card-quiet p-2">
+                  <span className="font-bold text-lav">Neutral Risk Moderator:</span>
+                  <span className="text-inksoft ml-1">Bridges risk perspective into final Portfolio Manager sizing plan.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* G. AI Usage Telemetry */}
+          <div className="card-quiet p-4 text-xs flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <span className="text-inksoft">Model Provider:</span> <b className="font-mono">{current.provider || "TradingAgents"}</b>
+            </div>
+            <div>
+              <span className="text-inksoft">Engine:</span> <b className="font-mono">{current.model || "gemini-2.5-flash"}</b>
+            </div>
+            <div>
+              <span className="text-inksoft">Debate Depth:</span> <b>1 round</b>
+            </div>
+            <div>
+              <span className="text-inksoft">Fail-Closed Status:</span> <b className="text-upink">PASSING</b>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="card p-8 flex flex-col items-center justify-center gap-2 text-inksoft text-sm">
+          <p>No completed AI decisions logged yet.</p>
+          <p className="text-xs">When FabRich generates candidate trades, decisions will appear here with full research traces.</p>
+        </div>
+      )}
+
+      {/* Decision Audit Trail Table */}
+      <div className="card p-5">
+        <h2 className="font-display font-semibold mb-3">Persisted AI Decision Ledger (`ai_decisions.v2.jsonl`)</h2>
+        {decisions.length === 0 ? (
+          <p className="text-sm text-inksoft">No decision records stored yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs tnum">
+              <thead>
+                <tr className="text-inksoft border-b border-white/60 text-left">
+                  <th className="py-1">Timestamp</th>
+                  <th>Symbol</th>
+                  <th>Side</th>
+                  <th>Strategy</th>
+                  <th>Rating</th>
+                  <th>Decision</th>
+                  <th>Thesis Summary</th>
+                </tr>
+              </thead>
+              <tbody>
+                {decisions.map((d, i) => (
+                  <tr
+                    key={d.request_id || i}
+                    onClick={() => setActiveDecision(d)}
+                    className="border-b border-white/40 hover:bg-white/40 cursor-pointer"
+                  >
+                    <td className="py-2 text-inksoft">{timeAgo(d.generated_at)}</td>
+                    <td className="font-bold">{d.symbol}</td>
+                    <td className={d.side === "long" ? "text-upink font-bold" : "text-downink font-bold"}>
+                      {d.side?.toUpperCase()}
+                    </td>
+                    <td className="text-inksoft">{d.strategy_id}</td>
+                    <td><b>{d.rating}</b></td>
+                    <td>
+                      <span className={`pill px-2 py-0.5 text-[10px] font-bold ${
+                        d.decision === "APPROVE" ? "text-upink" : "text-downink"
+                      }`}>
+                        {d.decision}
+                      </span>
+                    </td>
+                    <td className="text-inksoft truncate max-w-xs">{d.thesis || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

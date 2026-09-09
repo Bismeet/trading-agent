@@ -1,0 +1,7 @@
+strategy_id,trades,wins,losses,win_rate_pct,net_pnl_usd,gross_pnl_usd,expectancy_r,profit_factor,avg_win_usd,avg_loss_usd,sqn,liquidation_count
+tsmom,20,1,19,5,-1.57949,-1.037157,-0.050129,0.032601,0.015411,-0.083942,-4.93214,0
+donchian,0,0,0,0,0,0,0,0,0,0,0,0
+rsi2dip,0,0,0,0,0,0,0,0,0,0,0,0
+mom_trend,0,0,0,0,0,0,0,0,0,0,0,0
+orb,0,0,0,0,0,0,0,0,0,0,0,0
+ibreakout,0,0,0,0,0,0,0,0,0,0,0,0

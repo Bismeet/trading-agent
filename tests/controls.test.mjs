@@ -64,12 +64,12 @@ test("survival gating: blocked underwater, 5x cap above water, off = no gate", (
   assert.equal(off.maxLev, Infinity);
 });
 
-test("malformed commands are kept with error, not silently dropped", () => {
+test("malformed commands are kept with error + attempts, not silently dropped", () => {
   const s = freshV2State(cfg);
   fs.writeFileSync(CMD, JSON.stringify({ commands: [{ type: "setGoal", target: -5 }, { type: "wat" }] }));
   const applied = consumeCommands(s, cfg);
   assert.equal(applied.length, 0);
   const left = JSON.parse(fs.readFileSync(CMD, "utf8")).commands;
   assert.equal(left.length, 2);
-  assert.ok(left.every((c) => c.error));
+  assert.ok(left.every((c) => c.error && c.attempts === 1));
 });

@@ -1,0 +1,439 @@
+{
+  "overall_metrics": {
+    "total_trades_initiated": 25,
+    "closed_trades_count": 20,
+    "open_forfeited_count": 5,
+    "wins_count": 1,
+    "losses_count": 19,
+    "win_rate_pct": 5.0,
+    "gross_pnl_usd": -1.0371570092805174,
+    "journaled_net_pnl_usd": -1.5794901094057288,
+    "true_net_pnl_usd": -2.111064249303622,
+    "entry_fees_closed_usd": 0.5315741398978935,
+    "exit_fees_closed_usd": 0.5313238983383306,
+    "total_fees_closed_usd": 1.062898038236224,
+    "entry_fees_all_usd": 0.6039570620234233,
+    "funding_accrued_usd": -0.011009201786880782,
+    "total_slippage_spread_usd": 1.0735995407771641,
+    "liquidations_count": 0,
+    "expectancy_r": -0.050128698771393046,
+    "sqn": -4.932139764584993,
+    "profit_factor": 0.03260117738026602,
+    "avg_win_usd": 0.015411451830168317,
+    "avg_loss_usd": -0.08394218743346826
+  },
+  "strategy_performance": [
+    {
+      "strategy_id": "tsmom",
+      "trades": 20,
+      "wins": 1,
+      "losses": 19,
+      "win_rate_pct": 5.0,
+      "net_pnl_usd": -1.5794901094057288,
+      "gross_pnl_usd": -1.0371570092805174,
+      "expectancy_r": -0.050128698771393046,
+      "profit_factor": 0.03260117738026602,
+      "avg_win_usd": 0.015411451830168317,
+      "avg_loss_usd": -0.08394218743346826,
+      "sqn": -4.932139764584993,
+      "liquidation_count": 0
+    },
+    {
+      "strategy_id": "donchian",
+      "trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "win_rate_pct": 0.0,
+      "net_pnl_usd": 0,
+      "gross_pnl_usd": 0,
+      "expectancy_r": 0.0,
+      "profit_factor": 0.0,
+      "avg_win_usd": 0.0,
+      "avg_loss_usd": 0.0,
+      "sqn": 0.0,
+      "liquidation_count": 0
+    },
+    {
+      "strategy_id": "rsi2dip",
+      "trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "win_rate_pct": 0.0,
+      "net_pnl_usd": 0,
+      "gross_pnl_usd": 0,
+      "expectancy_r": 0.0,
+      "profit_factor": 0.0,
+      "avg_win_usd": 0.0,
+      "avg_loss_usd": 0.0,
+      "sqn": 0.0,
+      "liquidation_count": 0
+    },
+    {
+      "strategy_id": "mom_trend",
+      "trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "win_rate_pct": 0.0,
+      "net_pnl_usd": 0,
+      "gross_pnl_usd": 0,
+      "expectancy_r": 0.0,
+      "profit_factor": 0.0,
+      "avg_win_usd": 0.0,
+      "avg_loss_usd": 0.0,
+      "sqn": 0.0,
+      "liquidation_count": 0
+    },
+    {
+      "strategy_id": "orb",
+      "trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "win_rate_pct": 0.0,
+      "net_pnl_usd": 0,
+      "gross_pnl_usd": 0,
+      "expectancy_r": 0.0,
+      "profit_factor": 0.0,
+      "avg_win_usd": 0.0,
+      "avg_loss_usd": 0.0,
+      "sqn": 0.0,
+      "liquidation_count": 0
+    },
+    {
+      "strategy_id": "ibreakout",
+      "trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "win_rate_pct": 0.0,
+      "net_pnl_usd": 0,
+      "gross_pnl_usd": 0,
+      "expectancy_r": 0.0,
+      "profit_factor": 0.0,
+      "avg_win_usd": 0.0,
+      "avg_loss_usd": 0.0,
+      "sqn": 0.0,
+      "liquidation_count": 0
+    }
+  ],
+  "regime_performance": [
+    {
+      "regime": "broad_up",
+      "trades": 20,
+      "wins": 1,
+      "losses": 19,
+      "win_rate_pct": 5.0,
+      "net_pnl_usd": -1.5794901094057288,
+      "gross_pnl_usd": -1.0371570092805174,
+      "avg_pnl_usd": -0.07897450547028644
+    }
+  ],
+  "strategy_regime_matrix": [
+    {
+      "strategy_id": "tsmom",
+      "regime": "broad_up",
+      "trades": 20,
+      "wins": 1,
+      "losses": 19,
+      "win_rate_pct": 5.0,
+      "net_pnl_usd": -1.5794901094057288,
+      "avg_pnl_usd": -0.07897450547028644
+    }
+  ],
+  "symbol_performance": [
+    {
+      "symbol": "SOL-USD",
+      "market": "crypto",
+      "trades": 4,
+      "wins": 0,
+      "losses": 4,
+      "win_rate_pct": 0.0,
+      "net_pnl_usd": -0.3715545702253784,
+      "gross_pnl_usd": -0.2884806363823395,
+      "avg_pnl_usd": -0.0928886425563446,
+      "total_notional_usd": 162.97700986524436,
+      "fees_usd": 0.16287381249131053,
+      "funding_usd": -0.0016886262843505747
+    },
+    {
+      "symbol": "DOGE-USD",
+      "market": "crypto",
+      "trades": 4,
+      "wins": 1,
+      "losses": 3,
+      "win_rate_pct": 25.0,
+      "net_pnl_usd": -0.3711781390778867,
+      "gross_pnl_usd": -0.29046463088479113,
+      "avg_pnl_usd": -0.09279453476947168,
+      "total_notional_usd": 158.3613912991813,
+      "fees_usd": 0.15825603158785315,
+      "funding_usd": -0.0016381722548330828
+    },
+    {
+      "symbol": "BTC-USD",
+      "market": "crypto",
+      "trades": 4,
+      "wins": 0,
+      "losses": 4,
+      "win_rate_pct": 0.0,
+      "net_pnl_usd": -0.3466592740143257,
+      "gross_pnl_usd": -0.19702280518589588,
+      "avg_pnl_usd": -0.08666481850358143,
+      "total_notional_usd": 293.2482451046605,
+      "fees_usd": 0.2932238789544004,
+      "funding_usd": -0.0030367124263596494
+    },
+    {
+      "symbol": "XRP-USD",
+      "market": "crypto",
+      "trades": 4,
+      "wins": 0,
+      "losses": 4,
+      "win_rate_pct": 0.0,
+      "net_pnl_usd": -0.2542922452161654,
+      "gross_pnl_usd": -0.16010572352836558,
+      "avg_pnl_usd": -0.06357306130404135,
+      "total_notional_usd": 184.61650025378248,
+      "fees_usd": 0.1845830070079043,
+      "funding_usd": -0.0019117648067867093
+    },
+    {
+      "symbol": "ETH-USD",
+      "market": "crypto",
+      "trades": 4,
+      "wins": 0,
+      "losses": 4,
+      "win_rate_pct": 0.0,
+      "net_pnl_usd": -0.23580588087197252,
+      "gross_pnl_usd": -0.10108321329912522,
+      "avg_pnl_usd": -0.05895147021799313,
+      "total_notional_usd": 263.94513327291844,
+      "fees_usd": 0.2639613081947558,
+      "funding_usd": -0.0027339260145507653
+    }
+  ],
+  "exit_reason_performance": [
+    {
+      "exit_reason": "time-stop",
+      "trades": 10,
+      "wins": 0,
+      "losses": 10,
+      "win_rate_pct": 0.0,
+      "net_pnl_usd": -1.3622326640873113,
+      "avg_pnl_usd": -0.13622326640873111,
+      "avg_hold_hours": 14.345017222222221
+    },
+    {
+      "exit_reason": "episode-end",
+      "trades": 10,
+      "wins": 1,
+      "losses": 9,
+      "win_rate_pct": 10.0,
+      "net_pnl_usd": -0.21725744531841745,
+      "avg_pnl_usd": -0.021725744531841746,
+      "avg_hold_hours": 0.9931705555555557
+    }
+  ],
+  "run_performance": [
+    {
+      "episode_num": 1,
+      "episode_id": "ep_1788790395156_1",
+      "duration_hours": 5.969959444444444,
+      "starting_capital_usd": 100,
+      "final_equity_usd": 98.4112554176353,
+      "return_pct": -1.5887445823646984,
+      "max_drawdown_pct": 1.6001259092754907,
+      "trades_count": 5,
+      "open_forfeited_count": 5,
+      "fees_usd": 0.8793129403836197,
+      "funding_usd": -0.010990472791071265,
+      "liquidations_count": 0,
+      "best_strategy": "tsmom",
+      "worst_strategy": "tsmom",
+      "dominant_regime": "broad_up",
+      "end_reason": "manual-restart",
+      "generation": 1
+    },
+    {
+      "episode_num": 2,
+      "episode_id": "ep_1788811887018_2",
+      "duration_hours": 1.0049275,
+      "starting_capital_usd": 100,
+      "final_equity_usd": 99.89191091943958,
+      "return_pct": -0.108089080560414,
+      "max_drawdown_pct": 0.15261814830840156,
+      "trades_count": 5,
+      "open_forfeited_count": 0,
+      "fees_usd": 0.06136091929272654,
+      "funding_usd": -8.673617379884035e-19,
+      "liquidations_count": 0,
+      "best_strategy": "tsmom",
+      "worst_strategy": "tsmom",
+      "dominant_regime": "broad_up",
+      "end_reason": "time",
+      "generation": 1
+    },
+    {
+      "episode_num": 3,
+      "episode_id": "ep_1788815504776_3",
+      "duration_hours": 1.006665,
+      "starting_capital_usd": 100,
+      "final_equity_usd": 99.8294934927674,
+      "return_pct": -0.17050650723260397,
+      "max_drawdown_pct": 0.19300834269863287,
+      "trades_count": 5,
+      "open_forfeited_count": 0,
+      "fees_usd": 0.06126812119680189,
+      "funding_usd": 1.734723475976807e-18,
+      "liquidations_count": 0,
+      "best_strategy": "tsmom",
+      "worst_strategy": "tsmom",
+      "dominant_regime": "broad_up",
+      "end_reason": "time",
+      "generation": 2
+    },
+    {
+      "episode_num": 4,
+      "episode_id": "ep_1788819128795_4",
+      "duration_hours": 23.712310555555554,
+      "starting_capital_usd": 100,
+      "final_equity_usd": 99.65275880657336,
+      "return_pct": -0.3472411934266395,
+      "max_drawdown_pct": 0.3472411934266404,
+      "trades_count": 5,
+      "open_forfeited_count": 0,
+      "fees_usd": 0.06095605736307594,
+      "funding_usd": -1.8728995809517285e-05,
+      "liquidations_count": 0,
+      "best_strategy": "tsmom",
+      "worst_strategy": "tsmom",
+      "dominant_regime": "broad_up",
+      "end_reason": "time",
+      "generation": 3
+    }
+  ],
+  "cost_attribution": [
+    {
+      "cost_component": "Gross Price Return P&L",
+      "amount_usd": -1.0371570092805174,
+      "pct_of_gross": 100.0,
+      "notes": "Price change from entry fill to exit fill"
+    },
+    {
+      "cost_component": "Entry Taker Fees (5 bps)",
+      "amount_usd": -0.5315741398978935,
+      "pct_of_gross": 51.253005585591126,
+      "notes": "Deducted from wallet on fill (omitted from journal net_pnl)"
+    },
+    {
+      "cost_component": "Exit Taker Fees (5 bps)",
+      "amount_usd": -0.5313238983383306,
+      "pct_of_gross": 51.22887794075783,
+      "notes": "Deducted at closePosition"
+    },
+    {
+      "cost_component": "Total Exchange Taker Fees",
+      "amount_usd": -1.062898038236224,
+      "pct_of_gross": 102.48188352634897,
+      "notes": "10 bps total round-trip taker fees"
+    },
+    {
+      "cost_component": "Modeled Half-Spread Friction",
+      "amount_usd": -1.062898038236224,
+      "pct_of_gross": 102.48188352634897,
+      "notes": "Built into adverse fill price (5 bps entry + 5 bps exit)"
+    },
+    {
+      "cost_component": "Modeled Market Impact Slippage",
+      "amount_usd": -0.010701502540940018,
+      "pct_of_gross": 1.0318112344787336,
+      "notes": "Square-root impact model (D=$2M depth)"
+    },
+    {
+      "cost_component": "Total Execution Friction (Spread + Impact)",
+      "amount_usd": -1.0735995407771641,
+      "pct_of_gross": 103.5136947608277,
+      "notes": "Shift in executed price vs unperturbed mark"
+    },
+    {
+      "cost_component": "Funding Carry Cost",
+      "amount_usd": -0.011009201786880782,
+      "pct_of_gross": 1.061478801027237,
+      "notes": "8h UTC funding payments across holding period"
+    },
+    {
+      "cost_component": "Journaled Net Realized Outcome",
+      "amount_usd": -1.5794901094057288,
+      "pct_of_gross": 152.29035674178505,
+      "notes": "gross - exit_fee + funding (engine ledger calculation)"
+    },
+    {
+      "cost_component": "True Full Net Outcome",
+      "amount_usd": -2.111064249303622,
+      "pct_of_gross": 203.54336232737617,
+      "notes": "gross - entry_fee - exit_fee + funding"
+    }
+  ],
+  "concurrency_and_correlation": {
+    "total_entry_batches": 5,
+    "avg_positions_per_batch": 5.0,
+    "max_simultaneous_open": 5,
+    "correlated_crypto_batches": 5,
+    "batch_details": [
+      {
+        "timestamp_utc": "2026-09-07 14:23:11 UTC",
+        "episode_id": "ep_1788790395156_1",
+        "positions_opened": 5,
+        "symbols": "BTC-USD, ETH-USD, SOL-USD, XRP-USD, DOGE-USD",
+        "all_same_side": true,
+        "side": "long",
+        "total_margin_usd": 73.28233812346143,
+        "total_notional_usd": 879.3880574815371,
+        "effective_portfolio_leverage": 8.79388057481537
+      },
+      {
+        "timestamp_utc": "2026-09-07 19:29:50 UTC",
+        "episode_id": "ep_1788790395156_1",
+        "positions_opened": 5,
+        "symbols": "BTC-USD, ETH-USD, SOL-USD, XRP-USD, DOGE-USD",
+        "all_same_side": true,
+        "side": "long",
+        "total_margin_usd": 12.063820354254963,
+        "total_notional_usd": 144.76584425105955,
+        "effective_portfolio_leverage": 1.4476584425105954
+      },
+      {
+        "timestamp_utc": "2026-09-07 20:11:57 UTC",
+        "episode_id": "ep_1788811887018_2",
+        "positions_opened": 5,
+        "symbols": "BTC-USD, ETH-USD, SOL-USD, XRP-USD, DOGE-USD",
+        "all_same_side": true,
+        "side": "long",
+        "total_margin_usd": 12.273779676420288,
+        "total_notional_usd": 61.36889838210144,
+        "effective_portfolio_leverage": 0.6136889838210144
+      },
+      {
+        "timestamp_utc": "2026-09-07 21:12:43 UTC",
+        "episode_id": "ep_1788815504776_3",
+        "positions_opened": 5,
+        "symbols": "BTC-USD, ETH-USD, SOL-USD, XRP-USD, DOGE-USD",
+        "all_same_side": true,
+        "side": "long",
+        "total_margin_usd": 12.261477313431282,
+        "total_notional_usd": 61.307386567156406,
+        "effective_portfolio_leverage": 0.6130738656715641
+      },
+      {
+        "timestamp_utc": "2026-09-07 22:13:07 UTC",
+        "episode_id": "ep_1788819128795_4",
+        "positions_opened": 5,
+        "symbols": "BTC-USD, ETH-USD, SOL-USD, XRP-USD, DOGE-USD",
+        "all_same_side": true,
+        "side": "long",
+        "total_margin_usd": 12.216787472998416,
+        "total_notional_usd": 61.08393736499208,
+        "effective_portfolio_leverage": 0.6108393736499208
+      }
+    ]
+  },
+  "reconstructed_trades_count": 25
+}

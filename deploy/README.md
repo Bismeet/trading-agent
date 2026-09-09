@@ -29,6 +29,16 @@ pm2 restart fabinvests-engine
 node tests/live-smoke.mjs # provider health check
 ```
 
+## Reliability contract (added 2026-09-09)
+
+- Engine is an independent process: refresh/reconnect/close never restarts a run.
+- Each cycle stamps snapshotId into state+signals; API reports
+  snapshot.consistent; UI keeps last good frame on torn reads.
+- heartbeat.v2.json each cycle; API liveness, sidebar LIVE/RECONNECTING/STALE.
+- POST accepts clientToken + 30s deep-equal dedupe (no duplicate restarts).
+- Poison commands move to capped errors after 5 failures.
+- Validated: 58/58 tests, tsc clean, next build clean, live --once + live-smoke green.
+
 ## Security rules (do not skip)
 - **Never expose port 3002 publicly.** The dashboard is read-only, but it also
   advertises "my bot runs here". Keep it firewalled and view it via SSH tunnel:

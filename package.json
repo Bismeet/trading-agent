@@ -7,6 +7,11 @@
     "init": "node scripts/init.mjs",
     "cycle": "node scripts/daemon.mjs --once",
     "daemon": "node scripts/daemon.mjs",
-    "test": "node --test tests/"
+    "test": "node --test tests/*.test.mjs",
+    "ai": ".venv/Scripts/python.exe ai/tauric/server.py",
+    "web": "npm --prefix web run dev",
+    "start:all": "node scripts/start_all.mjs",
+    "stop:all": "node scripts/stop_all.mjs",
+    "test:ai": ".venv/Scripts/pytest.exe ai/tauric/tests -v"
   }
 }

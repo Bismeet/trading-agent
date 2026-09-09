@@ -196,6 +196,7 @@ export function runStrategies(state, eq, cfg, histCache) {
     orders.push({
       op: "open",
       symbol,
+      market: w.market,
       side: sig.side,
       leverage,
       strategy_id: seed.id,

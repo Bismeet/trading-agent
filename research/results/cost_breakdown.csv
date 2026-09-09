@@ -1,0 +1,11 @@
+cost_component,amount_usd,pct_of_gross,notes
+Gross Price Return P&L,-1.037157,100,Price change from entry fill to exit fill
+Entry Taker Fees (5 bps),-0.531574,51.253006,Deducted from wallet on fill (omitted from journal net_pnl)
+Exit Taker Fees (5 bps),-0.531324,51.228878,Deducted at closePosition
+Total Exchange Taker Fees,-1.062898,102.481884,10 bps total round-trip taker fees
+Modeled Half-Spread Friction,-1.062898,102.481884,Built into adverse fill price (5 bps entry + 5 bps exit)
+Modeled Market Impact Slippage,-0.010702,1.031811,Square-root impact model (D=$2M depth)
+Total Execution Friction (Spread + Impact),-1.0736,103.513695,Shift in executed price vs unperturbed mark
+Funding Carry Cost,-0.011009,1.061479,8h UTC funding payments across holding period
+Journaled Net Realized Outcome,-1.57949,152.290357,gross - exit_fee + funding (engine ledger calculation)
+True Full Net Outcome,-2.111064,203.543362,gross - entry_fee - exit_fee + funding

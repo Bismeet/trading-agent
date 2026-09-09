@@ -83,6 +83,14 @@
       "brainLoopMinutes": 8,
       "maxConcurrentPositions": 10,
       "minNotionalUsd": 2
+    },
+    "ai": {
+      "enabled": true,
+      "endpoint": "http://127.0.0.1:8000/api/hybrid/decision",
+      "tradingAgentsBaseUrl": "http://127.0.0.1:8000",
+      "requestTimeoutMs": 10000,
+      "decisionTtlSeconds": 300,
+      "pollIntervalMs": 5000
     }
   }
 }
