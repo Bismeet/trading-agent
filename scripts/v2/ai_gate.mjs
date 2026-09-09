@@ -13,6 +13,8 @@
 import {
   V2, readJSON, writeJSON, appendJSONL, readJSONL, now, iso, sha256, round,
 } from "./store.mjs";
+import { buildFabrichContext } from "./ai_context.mjs";
+
 
 export const AI_STATUS = {
   PENDING: "pending",
@@ -47,7 +49,7 @@ export function fingerprintCandidate(intent, state, quote) {
 /**
  * Builds the exact payload documented in TA_INTEGRATION.md.
  */
-export function buildHybridRequest(intent, quote, state, dateOverride = null) {
+export function buildHybridRequest(intent, quote, state, dateOverride = null, contextOverride = undefined) {
   const t = intent.createdAt || now();
   const tradeDate = dateOverride || new Date(t).toISOString().slice(0, 10);
   const isCrypto = intent.market === "crypto" || (intent.symbol && intent.symbol.includes("-USD"));
@@ -69,6 +71,10 @@ export function buildHybridRequest(intent, quote, state, dateOverride = null) {
     }
   }
 
+  const fabrichContext = contextOverride !== undefined
+    ? contextOverride
+    : buildFabrichContext(intent, { state });
+
   return {
     ticker: intent.symbol,
     trade_date: tradeDate,
@@ -81,6 +87,7 @@ export function buildHybridRequest(intent, quote, state, dateOverride = null) {
     target_price: targetPrice,
     trading_regime: state?.regime || null,
     instrument_context: state?.regime ? `FabRich regime=${state.regime}` : null,
+    fabrich_context: fabrichContext,
   };
 }
 
@@ -150,6 +157,7 @@ export function parseAndValidateDecision(raw, proposedSide) {
     model_name: raw.model_name || null,
     fabrich_strategy_id: raw.fabrich_strategy_id || null,
     fabrich_setup_tag: raw.fabrich_setup_tag || null,
+    fabrich_context: raw.fabrich_context || null,
     reason: approved ? null : (raw.reason || `rating_${rating.toLowerCase()}_rejected_${side}`),
   };
 }
@@ -245,6 +253,7 @@ export function logAiDecision(record, filePath = V2.aiDecisions) {
     provider: record.provider || record.model_provider || "TradingAgents",
     model: record.model || record.model_name || null,
     error: record.error || null,
+    fabrich_context: record.fabrich_context || null,
   });
 }
 
@@ -297,6 +306,7 @@ export function enqueueCandidate(intent, quote, state, cfg, queuePath = V2.aiPen
     status: AI_STATUS.PENDING,
     decision: null,
     resolved_at: null,
+    fabrich_context: payload.fabrich_context,
     intent: { ...intent }, // full intent preserved for downstream council & execution
   };
 
@@ -325,7 +335,7 @@ export function drainAndProcessAiQueue(cfg, state, queuePath = V2.aiPending, dec
     // Run async in background without blocking engine loop
     (async () => {
       try {
-        const payload = buildHybridRequest(req.intent, { price: req.candidate_entry }, state);
+        const payload = buildHybridRequest(req.intent, { price: req.candidate_entry }, state, null, req.fabrich_context);
         const res = await callTradingAgents(payload, endpoint, timeoutMs, fetchFn);
         const resolvedTs = now();
         const ageMs = resolvedTs - req.created_at;
@@ -360,6 +370,7 @@ export function drainAndProcessAiQueue(cfg, state, queuePath = V2.aiPending, dec
           provider: res.model_provider || "TradingAgents",
           model: res.model_name || null,
           error: res.error || null,
+          fabrich_context: res.fabrich_context || req.fabrich_context || null,
         }, decisionsPath);
       } catch (err) {
         const curQueue = loadAiPendingQueue(queuePath);

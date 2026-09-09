@@ -111,6 +111,7 @@ export function AIDecisionLedger({
                 <th className="py-2.5 px-3">Strategy</th>
                 <th className="py-2.5 px-3">Verdict</th>
                 <th className="py-2.5 px-3">Rating</th>
+                <th className="py-2.5 px-3">Context</th>
                 <th className="py-2.5 px-3">Candidate Entry</th>
                 <th className="py-2.5 px-3 max-w-xs">Thesis Summary</th>
                 <th className="py-2.5 px-3 text-right">Action</th>
@@ -149,6 +150,16 @@ export function AIDecisionLedger({
                     </td>
                     <td className="py-2.5 px-3 font-semibold capitalize text-ink">
                       {d.rating || "Hold"}
+                    </td>
+                    <td className="py-2.5 px-3 text-inksoft whitespace-nowrap">
+                      {d.fabrich_context ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sakura/25 text-ink text-[10px] font-semibold border border-sakura/40" title="FabRich intelligence used by Tauric AI">
+                          <span>🧬</span>
+                          <span>{d.fabrich_context.lessons?.length ?? 0} {d.fabrich_context.lessons?.length === 1 ? "lesson" : "lessons"}</span>
+                        </span>
+                      ) : (
+                        <span className="text-inksoft/40 text-[11px]">—</span>
+                      )}
                     </td>
                     <td className="py-2.5 px-3 text-ink font-semibold">
                       {d.entry_price ? price(d.entry_price) : "—"}

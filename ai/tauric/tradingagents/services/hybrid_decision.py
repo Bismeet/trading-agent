@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -50,6 +50,7 @@ class HybridDecision(BaseModel):
     # Opaque passthrough of FabRich context (never acted on by TradingAgents).
     fabrich_setup_tag: Optional[str] = Field(default=None)
     fabrich_strategy_id: Optional[str] = Field(default=None)
+    fabrich_context: Optional[dict[str, Any]] = Field(default=None)
     # Error path: when the AI pipeline is unavailable or output is malformed.
     reason: Optional[str] = Field(default=None)
 

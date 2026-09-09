@@ -3,6 +3,7 @@
 import React from "react";
 import { price, timeAgo } from "../../lib/format";
 import { StatusBadge } from "../ui/StatusBadge";
+import { FabRichContextCard } from "./FabRichContextCard";
 
 interface AICandidateCardProps {
   candidate: any;
@@ -138,6 +139,13 @@ export function AICandidateCard({
         <p className="text-xs text-ink/85 leading-relaxed line-clamp-2 mb-3 bg-white/40 p-2.5 rounded-lg border border-white/60">
           {thesis}
         </p>
+
+        {/* FabRich Context Used (Expandable) */}
+        {c.fabrich_context && (
+          <div onClick={(e) => e.stopPropagation()} className="mb-3">
+            <FabRichContextCard context={c.fabrich_context} defaultExpanded={false} />
+          </div>
+        )}
       </div>
 
       <div>

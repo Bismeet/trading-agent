@@ -104,6 +104,7 @@ def build_hybrid_decision(
     setup_tag: str | None = None,
     ticker: str = "",
     trade_date: str = "",
+    fabrich_context: dict[str, Any] | None = None,
 ) -> HybridDecision:
     """Convert a finished graph state into a :class:`HybridDecision`.
 
@@ -156,11 +157,12 @@ def build_hybrid_decision(
         model_name=str(model_name) if model_name else None,
         fabrich_setup_tag=setup_tag,
         fabrich_strategy_id=strategy_id,
+        fabrich_context=fabrich_context,
         reason=None,
     )
 
 
-def rejection(reason: str, ticker: str, trade_date: str) -> HybridDecision:
+def rejection(reason: str, ticker: str, trade_date: str, fabrich_context: dict[str, Any] | None = None) -> HybridDecision:
     """Deterministic fallback used when the AI pipeline cannot produce a signal."""
     logger.warning("Hybrid decision rejected: %s", reason)
     return HybridDecision(
@@ -179,6 +181,7 @@ def rejection(reason: str, ticker: str, trade_date: str) -> HybridDecision:
         model_name=None,
         fabrich_setup_tag=None,
         fabrich_strategy_id=None,
+        fabrich_context=fabrich_context,
         reason=reason,
     )
 

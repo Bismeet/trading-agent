@@ -241,3 +241,64 @@ def test_invalid_date_is_deterministic_rejection(client, stub_graph, bad_date):
     assert body["approved"] is False
     assert body["source"] == "TradingAgents"
 
+
+def test_fabrich_context_passthrough_in_decision(client, stub_graph):
+    sample_context = {
+        "strategy": {"id": "tsmom", "win_rate": 0.65, "profit_factor": 2.1},
+        "lessons": [{"id": "l1", "title": "BTC lesson", "text": "Caution on funding"}],
+        "recent_trades": {"matching_count": 3, "total_pnl": 250},
+        "positions": {"open_count": 1, "equity": 1000},
+        "world": {"regime": "bull", "risk_posture": "aggressive"},
+    }
+    stub_graph(state=_state("Buy"))
+    resp = _post(
+        client,
+        {
+            "ticker": "BTC-USD",
+            "trade_date": "2024-05-10",
+            "proposed_side": "long",
+            "strategy_id": "tsmom",
+            "fabrich_context": sample_context,
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["approved"] is True
+    assert body["fabrich_context"] is not None
+    assert body["fabrich_context"]["strategy"]["id"] == "tsmom"
+    assert len(body["fabrich_context"]["lessons"]) == 1
+
+
+def test_format_fabrich_context_prompt():
+    from web.backend.api.hybrid_router import format_fabrich_context_prompt, HybridDecisionRequest
+
+    req = HybridDecisionRequest(
+        ticker="BTC-USD",
+        trade_date="2024-05-10",
+        proposed_side="long",
+        strategy_id="tsmom",
+        candidate_entry=65000.0,
+        candidate_stop=62000.0,
+        candidate_target=71000.0,
+    )
+    ctx = {
+        "strategy": {"id": "tsmom", "total_trades": 15, "win_rate": 0.6, "profit_factor": 1.9, "expectancy_r": 0.4},
+        "lessons": [{"title": "Watch 4h EMA", "text": "TSMOM false breaks in low vol", "importance": 8}],
+        "recent_trades": {"matching_count": 2, "win_rate": 0.5, "total_pnl": 120.0},
+        "positions": {"equity": 1000.0, "gross_leverage": 1.2, "leverage_cap": 3.0, "open_count": 1},
+        "world": {"regime": "momentum", "risk_posture": "aggressive", "funding_rate": 0.0001},
+    }
+
+    formatted = format_fabrich_context_prompt(ctx, req)
+    assert "=== FABRICH SYSTEM CONTEXT & HISTORICAL EVIDENCE ===" in formatted
+    assert "CURRENT CANDIDATE" in formatted
+    assert "FABRICH STRATEGY CONTEXT" in formatted
+    assert "FABRICH LESSONS" in formatted
+    assert "Watch 4h EMA" in formatted
+    assert "RECENT RELEVANT TRADES" in formatted
+    assert "CURRENT PORTFOLIO CONTEXT" in formatted
+    assert "WORLD / MACRO CONTEXT" in formatted
+    assert "TAURIC EXTERNAL RESEARCH & CRITICAL EVALUATION" in formatted
+    assert "Do not blindly follow it" in formatted
+
+

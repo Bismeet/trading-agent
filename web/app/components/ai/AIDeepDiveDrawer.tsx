@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { price, timeAgo, usd } from "../../lib/format";
 import { StatusBadge } from "../ui/StatusBadge";
 import { GlassButton } from "../ui/GlassButton";
+import { FabRichContextCard } from "./FabRichContextCard";
 
 interface AIDeepDiveDrawerProps {
   candidate: any | null;
@@ -171,7 +172,15 @@ export function AIDeepDiveDrawer({
             </div>
           </div>
 
-          {/* Section 2: 4-Analyst Specialist Breakdown */}
+          {/* Section 2: FabRich Context Injected */}
+          <div>
+            <FabRichContextCard
+              context={c.fabrich_context}
+              defaultExpanded={true}
+            />
+          </div>
+
+          {/* Section 3: 4-Analyst Specialist Breakdown */}
           <div>
             <h3 className="text-xs font-bold uppercase tracking-wider text-inksoft mb-3">
               Specialist Analyst Signals
