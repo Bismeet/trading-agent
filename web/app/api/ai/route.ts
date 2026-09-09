@@ -7,52 +7,106 @@ export const revalidate = 0;
 
 const ROOTDIR = path.resolve(process.cwd(), "..");
 
-const SUPPORTED_PROVIDERS: Record<string, { label: string; models: { id: string; name: string }[] }> = {
+export interface ModelMetadata {
+  id: string;
+  name: string;
+  provider: string;
+  description: string;
+  context_window: number;
+  category: string;
+  lifecycle: string;
+  speed: string;
+  cost_class: string;
+  input_price?: string;
+  output_price?: string;
+  capabilities?: Record<string, boolean>;
+  recommended?: boolean;
+  default_quick?: boolean;
+  default_deep?: boolean;
+  is_free?: boolean;
+}
+
+export interface ProviderInfo {
+  label: string;
+  description: string;
+  defaultQuick: string;
+  defaultDeep: string;
+  isHostedGateway?: boolean;
+}
+
+export const SUPPORTED_PROVIDERS: Record<string, ProviderInfo> = {
   google: {
-    label: "Google Gemini (Active)",
-    models: [
-      { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash (Fast & Balanced - Recommended)" },
-      { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro (Deep Reasoning)" },
-      { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash" },
-      { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash" },
-      { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro" },
-    ],
+    label: "Google Gemini",
+    description: "1M-2M context, native multi-modal & fast hybrid thinking",
+    defaultQuick: "gemini-2.5-flash-lite",
+    defaultDeep: "gemini-2.5-flash",
   },
   openai: {
     label: "OpenAI",
-    models: [
-      { id: "gpt-4o-mini", name: "GPT-4o Mini" },
-      { id: "gpt-4o", name: "GPT-4o" },
-      { id: "o3-mini", name: "o3-mini" },
-    ],
+    description: "Industry-standard GPT-4o and frontier reasoning o1/o3-mini models",
+    defaultQuick: "gpt-4o-mini",
+    defaultDeep: "gpt-4o",
   },
   anthropic: {
-    label: "Anthropic",
-    models: [
-      { id: "claude-3-5-sonnet-latest", name: "Claude 3.5 Sonnet" },
-      { id: "claude-3-5-haiku-latest", name: "Claude 3.5 Haiku" },
-    ],
+    label: "Anthropic Claude",
+    description: "Claude 3.7 / 3.5 Sonnet & Haiku with extended thinking mode",
+    defaultQuick: "claude-3-5-haiku-latest",
+    defaultDeep: "claude-3-7-sonnet-latest",
   },
   groq: {
     label: "Groq",
-    models: [
-      { id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B Versatile" },
-      { id: "mixtral-8x7b-32768", name: "Mixtral 8x7B" },
-    ],
+    description: "Ultra-low latency LPU inference for Llama 3.3 and DeepSeek R1 Distill",
+    defaultQuick: "llama-3.3-70b-versatile",
+    defaultDeep: "deepseek-r1-distill-llama-70b",
   },
   deepseek: {
     label: "DeepSeek",
-    models: [
-      { id: "deepseek-chat", name: "DeepSeek Chat (V3)" },
-      { id: "deepseek-reasoner", name: "DeepSeek Reasoner (R1)" },
-    ],
+    description: "Direct DeepSeek API for V3 Chat and R1 Frontier Reasoner",
+    defaultQuick: "deepseek-chat",
+    defaultDeep: "deepseek-reasoner",
   },
   openrouter: {
     label: "OpenRouter",
-    models: [
-      { id: "google/gemini-2.0-flash-exp:free", name: "Gemini 2.0 Flash Exp (Free)" },
-      { id: "meta-llama/llama-3.3-70b-instruct", name: "Llama 3.3 70B Instruct" },
-    ],
+    description: "Universal model aggregator with hundreds of hosted models & free tiers",
+    defaultQuick: "nvidia/nemotron-3-super-120b-a12b:free",
+    defaultDeep: "deepseek/deepseek-r1",
+    isHostedGateway: true,
+  },
+  kimi: {
+    label: "Moonshot AI / Kimi",
+    description: "Moonshot Kimi long-context reasoning with up to 1M-2M tokens",
+    defaultQuick: "moonshot-v1-32k",
+    defaultDeep: "moonshot-v1-128k",
+  },
+  nvidia: {
+    label: "NVIDIA NIM",
+    description: "Accelerated enterprise inference microservices for Nemotron & Llama",
+    defaultQuick: "nvidia/llama-3.1-nemotron-70b-instruct",
+    defaultDeep: "moonshotai/kimi-k3",
+  },
+  meta: {
+    label: "Meta",
+    description: "Meta Muse Spark agentic foundation models",
+    defaultQuick: "muse-spark-1.3-contributor",
+    defaultDeep: "muse-spark-1.3",
+  },
+  mistral: {
+    label: "Mistral AI",
+    description: "European frontier models: Mistral Large 2, Pixtral & Codestral",
+    defaultQuick: "mistral-small-latest",
+    defaultDeep: "mistral-large-latest",
+  },
+  qwen: {
+    label: "Qwen / DashScope",
+    description: "Alibaba Cloud frontier multilingual & reasoning models (Qwen 2.5)",
+    defaultQuick: "qwen-plus",
+    defaultDeep: "qwen-max",
+  },
+  xai: {
+    label: "xAI (Grok)",
+    description: "Grok 2 and Grok 2 Vision frontier reasoning models by xAI",
+    defaultQuick: "grok-2-mini",
+    defaultDeep: "grok-2",
   },
 };
 
@@ -69,6 +123,37 @@ function getTauricBaseUrl(): string {
     /* fallback */
   }
   return "http://127.0.0.1:8000";
+}
+
+function getEnvVarsForProvider(provider: string): string[] {
+  switch (provider.toLowerCase().trim()) {
+    case "google":
+      return ["GOOGLE_API_KEY", "GEMINI_API_KEY"];
+    case "openai":
+      return ["OPENAI_API_KEY"];
+    case "anthropic":
+      return ["ANTHROPIC_API_KEY"];
+    case "groq":
+      return ["GROQ_API_KEY"];
+    case "deepseek":
+      return ["DEEPSEEK_API_KEY"];
+    case "openrouter":
+      return ["OPENROUTER_API_KEY"];
+    case "kimi":
+      return ["MOONSHOT_API_KEY"];
+    case "nvidia":
+      return ["NVIDIA_API_KEY"];
+    case "meta":
+      return ["META_API_KEY", "META_MUSE_API_KEY"];
+    case "mistral":
+      return ["MISTRAL_API_KEY"];
+    case "qwen":
+      return ["DASHSCOPE_API_KEY"];
+    case "xai":
+      return ["XAI_API_KEY"];
+    default:
+      return [`${provider.toUpperCase()}_API_KEY`];
+  }
 }
 
 function updateEnvFile(key: string, value: string) {
@@ -116,18 +201,22 @@ export async function GET(req: Request) {
     }
   }
 
-  // Fetch active config and health from Tauric
+  // Fetch active config, catalog, and health from Tauric
   try {
-    const [healthRes, configRes] = await Promise.all([
+    const [healthRes, configRes, catalogRes] = await Promise.all([
       fetch(`${baseUrl}/api/health`, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(2500) }).catch(() => null),
       fetch(`${baseUrl}/api/config/active`, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(2500) }).catch(() => null),
+      fetch(`${baseUrl}/api/config/models-catalog`, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(3500) }).catch(() => null),
     ]);
 
     const isHealthy = healthRes?.ok ?? false;
     let activeConfig: any = {
       provider: "google",
       model: "gemini-2.5-flash",
+      deep_think_llm: "gemini-2.5-flash",
+      quick_think_llm: "gemini-2.5-flash-lite",
       isKeyConfigured: false,
+      configuredProviders: [],
       status: isHealthy ? "online" : "offline",
     };
 
@@ -135,10 +224,21 @@ export async function GET(req: Request) {
       const cData = await configRes.json();
       activeConfig = {
         provider: cData.provider || "google",
-        model: cData.model || "gemini-2.5-flash",
+        model: cData.model || cData.deep_think_llm || "gemini-2.5-flash",
+        deep_think_llm: cData.deep_think_llm || cData.model || "gemini-2.5-flash",
+        quick_think_llm: cData.quick_think_llm || "gemini-2.5-flash-lite",
         isKeyConfigured: Boolean(cData.isKeyConfigured),
+        configuredProviders: cData.configuredProviders || [],
         status: isHealthy ? "online" : "offline",
       };
+    }
+
+    let catalog: Record<string, ModelMetadata[]> = {};
+    if (catalogRes?.ok) {
+      const catData = await catalogRes.json();
+      if (catData.catalog) {
+        catalog = catData.catalog;
+      }
     }
 
     return NextResponse.json(
@@ -148,6 +248,7 @@ export async function GET(req: Request) {
         baseUrl,
         config: activeConfig,
         supportedProviders: SUPPORTED_PROVIDERS,
+        catalog,
       },
       { status: 200 }
     );
@@ -157,8 +258,17 @@ export async function GET(req: Request) {
         ok: false,
         available: false,
         baseUrl,
-        config: { provider: "google", model: "gemini-2.5-flash", isKeyConfigured: false, status: "offline" },
+        config: {
+          provider: "google",
+          model: "gemini-2.5-flash",
+          deep_think_llm: "gemini-2.5-flash",
+          quick_think_llm: "gemini-2.5-flash-lite",
+          isKeyConfigured: false,
+          configuredProviders: [],
+          status: "offline",
+        },
         supportedProviders: SUPPORTED_PROVIDERS,
+        catalog: {},
         error: err?.message || "Tauric unreachable",
       },
       { status: 200 }
@@ -178,29 +288,37 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: false, error: "Provider and model are required" }, { status: 400 });
       }
 
-      const res = await fetch(`${baseUrl}/api/config/test-connection`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          provider: String(provider).toLowerCase().trim(),
-          model: String(model).trim(),
-          api_key: apiKey ? String(apiKey).trim() : null,
-        }),
-        signal: AbortSignal.timeout(15000),
-      });
+      try {
+        const res = await fetch(`${baseUrl}/api/config/test-connection`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            provider: String(provider).toLowerCase().trim(),
+            model: String(model).trim(),
+            api_key: apiKey ? String(apiKey).trim() : null,
+          }),
+          signal: AbortSignal.timeout(30000),
+        });
 
-      if (!res.ok) {
-        return NextResponse.json({ ok: false, error: `Tauric test failed with HTTP ${res.status}` }, { status: 200 });
+        if (!res.ok) {
+          return NextResponse.json({ ok: false, error: `Tauric test failed with HTTP ${res.status}` }, { status: 200 });
+        }
+
+        const testResult = await res.json();
+        return NextResponse.json(testResult, { status: 200 });
+      } catch (err: any) {
+        if (err?.name === "TimeoutError" || err?.name === "AbortError") {
+          return NextResponse.json({ ok: false, error: "Connection test timed out after 30s. The provider may be experiencing high latency." }, { status: 200 });
+        }
+        return NextResponse.json({ ok: false, error: err?.message || "Error connecting to Tauric service" }, { status: 200 });
       }
-
-      const testResult = await res.json();
-      return NextResponse.json(testResult, { status: 200 });
     }
 
     if (action === "save_settings") {
-      const { provider, model, apiKey } = body;
+      const { provider, model, deep_think_llm, quick_think_llm, apiKey } = body;
       const prov = String(provider || "google").toLowerCase().trim();
-      const mdl = String(model || "gemini-2.5-flash").trim();
+      const deepMdl = String(deep_think_llm || model || "gemini-2.5-flash").trim();
+      const quickMdl = String(quick_think_llm || deepMdl).trim();
 
       // 1. If an API key is provided, persist it server-side to Tauric and .env
       if (apiKey && String(apiKey).trim().length > 0) {
@@ -211,10 +329,9 @@ export async function POST(req: Request) {
           body: JSON.stringify({ provider: prov, api_key: cleanKey }),
         }).catch((e) => console.warn("Tauric /api/config/keys error:", e));
 
-        const envVarName = prov === "google" ? "GOOGLE_API_KEY" : `${prov.toUpperCase()}_API_KEY`;
-        updateEnvFile(envVarName, cleanKey);
-        if (prov === "google") {
-          updateEnvFile("GEMINI_API_KEY", cleanKey);
+        const envVars = getEnvVarsForProvider(prov);
+        for (const envVar of envVars) {
+          updateEnvFile(envVar, cleanKey);
         }
       }
 
@@ -224,23 +341,25 @@ export async function POST(req: Request) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           llm_provider: prov,
-          deep_think_llm: mdl,
-          quick_think_llm: mdl,
-          thinking_mode: "low",
+          deep_think_llm: deepMdl,
+          quick_think_llm: quickMdl,
+          thinking_mode: "medium",
         }),
       }).catch((e) => console.warn("Tauric /api/config/preferences error:", e));
 
-      // 3. Update TRADINGAGENTS_LLM_PROVIDER and TRADINGAGENTS_DEEP_THINK_LLM in .env
+      // 3. Update TRADINGAGENTS_LLM_PROVIDER, TRADINGAGENTS_DEEP_THINK_LLM, and TRADINGAGENTS_QUICK_THINK_LLM in .env
       updateEnvFile("TRADINGAGENTS_LLM_PROVIDER", prov);
-      updateEnvFile("TRADINGAGENTS_DEEP_THINK_LLM", mdl);
-      updateEnvFile("TRADINGAGENTS_QUICK_THINK_LLM", mdl);
+      updateEnvFile("TRADINGAGENTS_DEEP_THINK_LLM", deepMdl);
+      updateEnvFile("TRADINGAGENTS_QUICK_THINK_LLM", quickMdl);
 
       return NextResponse.json(
         {
           ok: true,
-          message: `AI settings updated: ${prov.toUpperCase()} (${mdl})`,
+          message: `AI settings updated: ${prov.toUpperCase()} (Deep: ${deepMdl}, Quick: ${quickMdl})`,
           provider: prov,
-          model: mdl,
+          model: deepMdl,
+          deep_think_llm: deepMdl,
+          quick_think_llm: quickMdl,
           isKeyConfigured: true,
         },
         { status: 200 }

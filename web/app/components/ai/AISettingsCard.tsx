@@ -1,17 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { GlassButton } from "../ui/GlassButton";
-
-interface ProviderModel {
-  id: string;
-  name: string;
-}
-
-interface ProviderData {
-  label: string;
-  models: ProviderModel[];
-}
+import { ModelSearchModal } from "./ModelSearchModal";
+import { ModelMetadata, ProviderInfo } from "../../api/ai/route";
 
 interface AISettingsCardProps {
   onConfigChanged?: () => void;
@@ -20,11 +12,17 @@ interface AISettingsCardProps {
 export function AISettingsCard({ onConfigChanged }: AISettingsCardProps) {
   const [loading, setLoading] = useState(true);
   const [provider, setProvider] = useState("google");
-  const [model, setModel] = useState("gemini-2.5-flash");
+  const [deepModel, setDeepModel] = useState("gemini-2.5-flash");
+  const [quickModel, setQuickModel] = useState("gemini-2.5-flash-lite");
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [isKeyConfigured, setIsKeyConfigured] = useState(false);
-  const [supportedProviders, setSupportedProviders] = useState<Record<string, ProviderData>>({});
+  const [configuredProviders, setConfiguredProviders] = useState<string[]>([]);
+  const [supportedProviders, setSupportedProviders] = useState<Record<string, ProviderInfo>>({});
+  const [catalog, setCatalog] = useState<Record<string, ModelMetadata[]>>({});
+
+  // Modal State
+  const [modalTarget, setModalTarget] = useState<"deep" | "quick" | null>(null);
 
   const [testStatus, setTestStatus] = useState<{
     running: boolean;
@@ -47,10 +45,18 @@ export function AISettingsCard({ onConfigChanged }: AISettingsCardProps) {
         if (data.supportedProviders) {
           setSupportedProviders(data.supportedProviders);
         }
+        if (data.catalog) {
+          setCatalog(data.catalog);
+        }
         if (data.config) {
-          setProvider(data.config.provider || "google");
-          setModel(data.config.model || "gemini-2.5-flash");
+          const prov = data.config.provider || "google";
+          setProvider(prov);
+          setDeepModel(data.config.deep_think_llm || data.config.model || "gemini-2.5-flash");
+          setQuickModel(data.config.quick_think_llm || "gemini-2.5-flash-lite");
           setIsKeyConfigured(Boolean(data.config.isKeyConfigured));
+          if (Array.isArray(data.config.configuredProviders)) {
+            setConfiguredProviders(data.config.configuredProviders);
+          }
         }
       }
     } catch (err) {
@@ -64,14 +70,89 @@ export function AISettingsCard({ onConfigChanged }: AISettingsCardProps) {
     fetchConfig();
   }, []);
 
+  const currentProviderModels = useMemo(() => {
+    const provModels = catalog[provider];
+    if (provModels && provModels.length > 0) return provModels;
+
+    // Fallback if catalog not yet loaded
+    const fallbackList: ModelMetadata[] = [
+      {
+        id: deepModel,
+        name: deepModel,
+        provider,
+        description: "Active model selection",
+        context_window: 128000,
+        category: "Active",
+        lifecycle: "ACTIVE",
+        speed: "Fast",
+        cost_class: "Standard",
+        recommended: true,
+      },
+    ];
+    if (quickModel !== deepModel) {
+      fallbackList.push({
+        id: quickModel,
+        name: quickModel,
+        provider,
+        description: "Active quick model selection",
+        context_window: 128000,
+        category: "Active",
+        lifecycle: "ACTIVE",
+        speed: "Fast",
+        cost_class: "Standard",
+      });
+    }
+    return fallbackList;
+  }, [catalog, provider, deepModel, quickModel]);
+
+  const activeDeepMetadata = useMemo(() => {
+    return currentProviderModels.find((m) => m.id === deepModel) || {
+      id: deepModel,
+      name: deepModel,
+      provider,
+      description: "",
+      context_window: 0,
+      category: "",
+      lifecycle: "ACTIVE",
+      speed: "Balanced",
+      cost_class: "Standard",
+    };
+  }, [currentProviderModels, deepModel, provider]);
+
+  const activeQuickMetadata = useMemo(() => {
+    return currentProviderModels.find((m) => m.id === quickModel) || {
+      id: quickModel,
+      name: quickModel,
+      provider,
+      description: "",
+      context_window: 0,
+      category: "",
+      lifecycle: "ACTIVE",
+      speed: "Ultra Fast",
+      cost_class: "Low",
+    };
+  }, [currentProviderModels, quickModel, provider]);
+
   const handleProviderChange = (newProv: string) => {
     setProvider(newProv);
-    const available = supportedProviders[newProv]?.models;
-    if (available && available.length > 0) {
-      setModel(available[0].id);
+    const provInfo = supportedProviders[newProv];
+    const provModels = catalog[newProv];
+
+    if (provModels && provModels.length > 0) {
+      const defaultDeep = provModels.find((m) => m.default_deep)?.id || provModels[0].id;
+      const defaultQuick =
+        provModels.find((m) => m.default_quick)?.id || provModels.find((m) => m.category === "Fast")?.id || defaultDeep;
+      setDeepModel(defaultDeep);
+      setQuickModel(defaultQuick);
+    } else if (provInfo) {
+      setDeepModel(provInfo.defaultDeep || "default");
+      setQuickModel(provInfo.defaultQuick || "default");
     }
+
+    setIsKeyConfigured(configuredProviders.includes(newProv));
     setTestStatus({ running: false });
     setSaveStatus({ saving: false });
+    setApiKey("");
   };
 
   const handleTestConnection = async () => {
@@ -85,7 +166,7 @@ export function AISettingsCard({ onConfigChanged }: AISettingsCardProps) {
         body: JSON.stringify({
           action: "test_connection",
           provider,
-          model,
+          model: deepModel,
           apiKey: apiKey.trim() || undefined,
         }),
       });
@@ -124,7 +205,9 @@ export function AISettingsCard({ onConfigChanged }: AISettingsCardProps) {
         body: JSON.stringify({
           action: "save_settings",
           provider,
-          model,
+          model: deepModel,
+          deep_think_llm: deepModel,
+          quick_think_llm: quickModel,
           apiKey: apiKey.trim() || undefined,
         }),
       });
@@ -137,6 +220,9 @@ export function AISettingsCard({ onConfigChanged }: AISettingsCardProps) {
           msg: data.message || "Settings saved and loaded into Tauric runtime.",
         });
         setIsKeyConfigured(true);
+        if (!configuredProviders.includes(provider)) {
+          setConfiguredProviders([...configuredProviders, provider]);
+        }
         setApiKey(""); // Clear uncommitted input
         if (onConfigChanged) onConfigChanged();
       } else {
@@ -155,21 +241,20 @@ export function AISettingsCard({ onConfigChanged }: AISettingsCardProps) {
     }
   };
 
-  const currentModels = supportedProviders[provider]?.models || [
-    { id: model, name: model },
-  ];
+  const currentProvLabel = supportedProviders[provider]?.label || provider.toUpperCase();
 
   return (
     <div className="card-fintech p-5 sm:p-6 border border-white/90 shadow-sm bg-gradient-to-br from-white/90 via-cream/40 to-white/90">
+      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-2 pb-4 mb-4 border-b border-black/5">
         <div className="flex items-center gap-2.5">
           <span className="text-xl">⚙️</span>
           <div>
             <h3 className="font-display font-bold text-base text-ink">
-              AI Model &amp; Provider Settings
+              AI Model &amp; Provider Registry
             </h3>
             <p className="text-xs text-inksoft">
-              Switch reasoning models or update API keys with zero restarts. Changes persist server-side.
+              Select dual-tier reasoning models with live provider discovery. Changes persist server-side.
             </p>
           </div>
         </div>
@@ -191,50 +276,44 @@ export function AISettingsCard({ onConfigChanged }: AISettingsCardProps) {
       </div>
 
       {loading ? (
-        <div className="text-xs text-inksoft py-4">Loading active configuration...</div>
+        <div className="text-xs text-inksoft py-4">Loading active configuration and model catalog...</div>
       ) : (
         <div className="flex flex-col gap-4">
-          <div className="grid sm:grid-cols-3 gap-4">
+          {/* Provider Selection & API Key Row */}
+          <div className="grid sm:grid-cols-2 gap-4">
             {/* Provider Selector */}
             <div>
-              <label className="block text-xs font-semibold text-ink mb-1">
-                LLM Provider
+              <label className="block text-xs font-semibold text-ink mb-1 flex items-center justify-between">
+                <span>LLM Provider</span>
+                <span className="text-[10px] text-inksoft">
+                  {Object.keys(supportedProviders).length} Providers Supported
+                </span>
               </label>
               <select
                 value={provider}
                 onChange={(e) => handleProviderChange(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-xl bg-white border border-black/10 text-ink font-medium outline-none focus:ring-1 focus:ring-sakura"
+                className="w-full px-3 py-2 text-xs rounded-xl bg-white border border-black/10 text-ink font-medium outline-none focus:ring-1 focus:ring-sakura shadow-2xs"
               >
-                {Object.entries(supportedProviders).map(([k, v]) => (
-                  <option key={k} value={k}>
-                    {v.label}
-                  </option>
-                ))}
+                {Object.entries(supportedProviders).map(([k, v]) => {
+                  const hasKey = configuredProviders.includes(k);
+                  return (
+                    <option key={k} value={k}>
+                      {v.label} {hasKey ? "✓" : ""}
+                    </option>
+                  );
+                })}
               </select>
-            </div>
-
-            {/* Model Selector */}
-            <div>
-              <label className="block text-xs font-semibold text-ink mb-1">
-                Active Reasoning Model
-              </label>
-              <select
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-xl bg-white border border-black/10 text-ink font-medium outline-none focus:ring-1 focus:ring-sakura"
-              >
-                {currentModels.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
+              {supportedProviders[provider]?.description && (
+                <p className="text-[11px] text-inksoft mt-1 line-clamp-1">
+                  {supportedProviders[provider].description}
+                </p>
+              )}
             </div>
 
             {/* API Key Input */}
             <div>
               <label className="block text-xs font-semibold text-ink mb-1 flex items-center justify-between">
-                <span>API Key</span>
+                <span>API Key ({currentProvLabel})</span>
                 <span className="text-[10px] text-inksoft font-normal">
                   {isKeyConfigured && !apiKey ? "Stored securely on server" : ""}
                 </span>
@@ -246,10 +325,10 @@ export function AISettingsCard({ onConfigChanged }: AISettingsCardProps) {
                   onChange={(e) => setApiKey(e.target.value)}
                   placeholder={
                     isKeyConfigured
-                      ? "•••••••••••••••• (Leave blank to keep current)"
-                      : "Enter API key..."
+                      ? "•••••••••••••••• (Leave blank to keep stored key)"
+                      : `Enter ${currentProvLabel} API key...`
                   }
-                  className="w-full px-3 py-2 pr-8 text-xs rounded-xl bg-white border border-black/10 text-ink font-mono outline-none focus:ring-1 focus:ring-sakura"
+                  className="w-full px-3 py-2 pr-8 text-xs rounded-xl bg-white border border-black/10 text-ink font-mono outline-none focus:ring-1 focus:ring-sakura shadow-2xs"
                 />
                 <button
                   type="button"
@@ -260,11 +339,113 @@ export function AISettingsCard({ onConfigChanged }: AISettingsCardProps) {
                   {showKey ? "🙈" : "👁️"}
                 </button>
               </div>
+              <p className="text-[10px] text-inksoft mt-1">
+                Keys are held in server memory and synced to .env. Never sent to browser client.
+              </p>
             </div>
           </div>
 
-          {/* Action Buttons & Status feedback */}
-          <div className="flex items-center justify-between flex-wrap gap-3 pt-2">
+          {/* Model Pickers: Deep Reasoning & Quick Analysis */}
+          <div className="grid sm:grid-cols-2 gap-4 pt-2">
+            {/* 1. Deep Reasoning Model Card */}
+            <div className="p-3.5 rounded-xl border border-black/10 bg-white/80 flex flex-col justify-between gap-2 shadow-2xs">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-bold text-ink flex items-center gap-1.5">
+                    <span>🧠</span> Deep Reasoning Engine
+                  </span>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-900 border border-purple-500/20">
+                    Analyst Debate &amp; Risk
+                  </span>
+                </div>
+                <p className="text-[11px] text-inksoft mb-2">
+                  Powers multi-agent research debate, technical valuation, and risk council.
+                </p>
+
+                <div className="p-2.5 rounded-lg bg-cream/40 border border-black/5 flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-semibold text-xs text-ink truncate">
+                      {activeDeepMetadata.name || deepModel}
+                    </div>
+                    <code className="text-[10px] font-mono text-inksoft">
+                      {deepModel}
+                    </code>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {activeDeepMetadata.speed && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-white border border-black/5 text-inksoft">
+                        {activeDeepMetadata.speed}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center justify-between">
+                <span className="text-[10px] text-inksoft">
+                  {currentProviderModels.length} models available
+                </span>
+                <GlassButton
+                  size="sm"
+                  variant="subtle"
+                  onClick={() => setModalTarget("deep")}
+                >
+                  Browse &amp; Change ➔
+                </GlassButton>
+              </div>
+            </div>
+
+            {/* 2. Quick Analysis Model Card */}
+            <div className="p-3.5 rounded-xl border border-black/10 bg-white/80 flex flex-col justify-between gap-2 shadow-2xs">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-bold text-ink flex items-center gap-1.5">
+                    <span>⚡</span> Fast / High-Throughput Engine
+                  </span>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-900 border border-sky-500/20">
+                    Triage &amp; Quick Checks
+                  </span>
+                </div>
+                <p className="text-[11px] text-inksoft mb-2">
+                  Powers rapid signal triage, quick thesis generation, and live summaries.
+                </p>
+
+                <div className="p-2.5 rounded-lg bg-cream/40 border border-black/5 flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-semibold text-xs text-ink truncate">
+                      {activeQuickMetadata.name || quickModel}
+                    </div>
+                    <code className="text-[10px] font-mono text-inksoft">
+                      {quickModel}
+                    </code>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {activeQuickMetadata.speed && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-white border border-black/5 text-inksoft">
+                        {activeQuickMetadata.speed}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center justify-between">
+                <span className="text-[10px] text-inksoft">
+                  {currentProviderModels.length} models available
+                </span>
+                <GlassButton
+                  size="sm"
+                  variant="subtle"
+                  onClick={() => setModalTarget("quick")}
+                >
+                  Browse &amp; Change ➔
+                </GlassButton>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons & Status Feedback */}
+          <div className="flex items-center justify-between flex-wrap gap-3 pt-2 border-t border-black/5">
             <div className="flex items-center gap-2 flex-wrap">
               <GlassButton
                 size="sm"
@@ -290,7 +471,7 @@ export function AISettingsCard({ onConfigChanged }: AISettingsCardProps) {
             <div className="text-xs">
               {testStatus.running && (
                 <span className="text-inksoft font-medium animate-pulse">
-                  Testing live model response...
+                  Testing server-side connection to {provider.toUpperCase()}...
                 </span>
               )}
               {testStatus.msg && !testStatus.running && (
@@ -317,6 +498,28 @@ export function AISettingsCard({ onConfigChanged }: AISettingsCardProps) {
           </div>
         </div>
       )}
+
+      {/* Command-Palette Model Picker Modal */}
+      <ModelSearchModal
+        isOpen={modalTarget !== null}
+        onClose={() => setModalTarget(null)}
+        onSelect={(selectedId) => {
+          if (modalTarget === "deep") {
+            setDeepModel(selectedId);
+          } else if (modalTarget === "quick") {
+            setQuickModel(selectedId);
+          }
+          setModalTarget(null);
+        }}
+        models={currentProviderModels}
+        providerName={currentProvLabel}
+        currentModelId={modalTarget === "deep" ? deepModel : quickModel}
+        title={
+          modalTarget === "deep"
+            ? "Select Deep Reasoning Model"
+            : "Select Fast / High-Throughput Model"
+        }
+      />
     </div>
   );
 }

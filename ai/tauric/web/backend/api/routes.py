@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from cli.utils import _llm_provider_table
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients.api_key_env import get_api_key_env
-from tradingagents.llm_clients.model_catalog import MODEL_OPTIONS
+from tradingagents.llm_clients.model_catalog import MODEL_OPTIONS, PROVIDER_CATALOG, get_model_metadata
 from web.backend.schemas import (
     AnalysisRequest,
     AnalysisRunSnapshot,
@@ -84,6 +84,96 @@ def _persist_key_to_env(env_var: str, key_val: str) -> None:
     except Exception as e:
         logger.warning("Could not persist key to .env: %s", e)
 
+
+
+_CATALOG_CACHE: dict[str, tuple[float, list[dict[str, Any]]]] = {}
+
+
+@router.get("/config/models-catalog")
+async def get_models_catalog(provider: str | None = Query(None)) -> dict[str, Any]:
+    """Return comprehensive model metadata catalog with live provider discovery where available."""
+    import time
+    import httpx
+
+    target_prov = provider.lower().strip() if provider else None
+    now_ts = time.time()
+    
+    # 1. Live discovery for Google Gemini if requested or returning full catalog
+    google_models = None
+    if target_prov in (None, "google"):
+        cache_entry = _CATALOG_CACHE.get("google")
+        if cache_entry and (now_ts - cache_entry[0] < 300):
+            google_models = cache_entry[1]
+        else:
+            google_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+            if google_key:
+                try:
+                    async with httpx.AsyncClient(timeout=3.5) as client:
+                        resp = await client.get(
+                            f"https://generativelanguage.googleapis.com/v1beta/models?key={google_key}"
+                        )
+                        if resp.status_code == 200:
+                            raw_models = resp.json().get("models", [])
+                            discovered: list[dict[str, Any]] = []
+                            excluded_substrings = (
+                                "image", "tts", "transcribe", "clip", "banana", "robotics",
+                                "computer-use", "lyria", "embedding", "aqa"
+                            )
+                            for m in raw_models:
+                                m_id = m.get("name", "").replace("models/", "")
+                                methods = m.get("supportedGenerationMethods", [])
+                                if "generateContent" not in methods:
+                                    continue
+                                if any(s in m_id.lower() for s in excluded_substrings):
+                                    continue
+                                
+                                existing = next((x for x in PROVIDER_CATALOG.get("google", []) if x["id"] == m_id), None)
+                                if existing:
+                                    discovered.append(existing)
+                                else:
+                                    in_tokens = m.get("inputTokenLimit", 1048576)
+                                    is_flash = "flash" in m_id.lower()
+                                    is_pro = "pro" in m_id.lower()
+                                    discovered.append({
+                                        "id": m_id,
+                                        "name": m.get("displayName") or m_id,
+                                        "provider": "google",
+                                        "description": m.get("description", "Google Gemini text and reasoning model."),
+                                        "context_window": in_tokens,
+                                        "category": "Reasoning" if is_pro else ("Fast" if is_flash else "Advanced"),
+                                        "lifecycle": "ACTIVE",
+                                        "speed": "Deep Reasoning" if is_pro else "Fast",
+                                        "cost_class": "Medium" if is_pro else "Low",
+                                        "input_price": "$1.25 / 1M" if is_pro else "$0.10 / 1M",
+                                        "output_price": "$5.00 / 1M" if is_pro else "$0.40 / 1M",
+                                        "capabilities": {"reasoning": True, "tools": True, "vision": True, "json_mode": True},
+                                        "recommended": is_flash or is_pro,
+                                    })
+                            if discovered:
+                                google_models = discovered
+                                _CATALOG_CACHE["google"] = (now_ts, discovered)
+                except Exception as exc:
+                    logger.debug("Google live discovery skipped: %s", exc)
+
+    if not google_models:
+        google_models = PROVIDER_CATALOG.get("google", [])
+
+    # Assemble response
+    catalog_copy = {k: list(v) for k, v in PROVIDER_CATALOG.items()}
+    if google_models:
+        catalog_copy["google"] = google_models
+
+    if target_prov:
+        return {
+            "provider": target_prov,
+            "models": catalog_copy.get(target_prov, []),
+            "discovered": target_prov in _CATALOG_CACHE,
+        }
+
+    return {
+        "catalog": catalog_copy,
+        "providers": list(catalog_copy.keys()),
+    }
 
 
 @router.get("/config/options", response_model=ConfigOptionsResponse)
@@ -409,13 +499,17 @@ async def get_api_keys() -> list[ApiKeyStatus]:
     """Return status and masked previews of configured API keys."""
     tracked_providers = [
         ("google", "Google Gemini"),
-        ("openrouter", "OpenRouter"),
         ("openai", "OpenAI"),
         ("anthropic", "Anthropic Claude"),
-        ("deepseek", "DeepSeek"),
         ("groq", "Groq"),
-        ("xai", "xAI (Grok)"),
+        ("deepseek", "DeepSeek"),
+        ("openrouter", "OpenRouter"),
+        ("kimi", "Moonshot AI / Kimi"),
         ("nvidia", "NVIDIA NIM"),
+        ("meta", "Meta"),
+        ("mistral", "Mistral AI"),
+        ("qwen", "Qwen / DashScope"),
+        ("xai", "xAI (Grok)"),
     ]
 
     results: list[ApiKeyStatus] = []
@@ -484,6 +578,12 @@ async def set_api_key(request: SetApiKeyRequest) -> dict[str, Any]:
     elif prov_key == "meta":
         os.environ["META_API_KEY"] = key_val
         os.environ["META_MUSE_API_KEY"] = key_val
+    elif prov_key == "kimi":
+        os.environ["MOONSHOT_API_KEY"] = key_val
+    elif prov_key == "mistral":
+        os.environ["MISTRAL_API_KEY"] = key_val
+    elif prov_key == "qwen":
+        os.environ["DASHSCOPE_API_KEY"] = key_val
 
     # Persist key to disk (.env) and update last used provider/key preference
     _persist_key_to_env(env_var, key_val)
@@ -511,6 +611,8 @@ async def delete_api_key(provider: str) -> dict[str, Any]:
             del os.environ["GEMINI_API_KEY"]
         if "GOOGLE_API_KEY" in os.environ:
             del os.environ["GOOGLE_API_KEY"]
+    if prov_key == "meta" and "META_MUSE_API_KEY" in os.environ:
+        del os.environ["META_MUSE_API_KEY"]
     return {
         "status": "success",
         "provider": prov_key,
@@ -575,16 +677,31 @@ async def get_active_config() -> dict[str, Any]:
     """Return active provider, model, and whether API key is configured (NEVER exposing key)."""
     prefs = _load_preferences()
     prov = prefs.get("llm_provider") or os.getenv("TRADINGAGENTS_LLM_PROVIDER") or "google"
-    model = prefs.get("deep_think_llm") or os.getenv("TRADINGAGENTS_DEEP_THINK_LLM") or "gemini-2.5-flash"
+    deep_model = prefs.get("deep_think_llm") or os.getenv("TRADINGAGENTS_DEEP_THINK_LLM") or "gemini-2.5-flash"
+    quick_model = prefs.get("quick_think_llm") or os.getenv("TRADINGAGENTS_QUICK_THINK_LLM") or deep_model
     env_var = get_api_key_env(prov)
     has_key = bool(os.getenv(env_var)) if env_var else True
     if prov == "google" and (os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")):
         has_key = True
+
+    tracked = ["google", "openai", "anthropic", "deepseek", "kimi", "nvidia", "mistral", "qwen", "groq", "meta", "openrouter", "xai"]
+    configured_providers = []
+    for p in tracked:
+        ev = get_api_key_env(p)
+        val = os.getenv(ev) if ev else None
+        if p == "google" and not val:
+            val = os.getenv("GEMINI_API_KEY")
+        if val and val.strip():
+            configured_providers.append(p)
+
     return {
         "ok": True,
         "provider": prov,
-        "model": model,
+        "model": deep_model,
+        "deep_think_llm": deep_model,
+        "quick_think_llm": quick_model,
         "isKeyConfigured": has_key,
+        "configuredProviders": configured_providers,
         "status": "online",
     }
 
