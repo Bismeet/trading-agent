@@ -2,27 +2,37 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { GlassButton } from "../ui/GlassButton";
-import { ModelSearchModal } from "./ModelSearchModal";
-import { ModelMetadata, ProviderInfo } from "../../api/ai/route";
+import { ProviderInfo, ModelMetadata } from "../../api/ai/route";
 
 interface AISettingsCardProps {
   onConfigChanged?: () => void;
 }
 
+const DEFAULT_POPULAR_MODELS: Record<string, string[]> = {
+  meta: ["muse-spark-1.3-contributor", "muse-spark-1.3"],
+  google: ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-3.5-flash", "gemini-2.5-pro", "gemini-3.1-pro-preview"],
+  openai: ["gpt-4o", "gpt-4o-mini", "o3-mini", "o1"],
+  anthropic: ["claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "claude-3-7-sonnet-latest"],
+  groq: ["llama-3.3-70b-versatile", "deepseek-r1-distill-llama-70b", "mixtral-8x7b-32768"],
+  deepseek: ["deepseek-chat", "deepseek-reasoner"],
+  openrouter: ["nvidia/nemotron-3-super-120b-a12b:free", "deepseek/deepseek-r1", "google/gemini-2.5-flash", "openai/gpt-4o-mini"],
+  kimi: ["moonshot-v1-32k", "moonshot-v1-128k", "moonshot-v1-auto"],
+  nvidia: ["nvidia/llama-3.1-nemotron-70b-instruct", "moonshotai/kimi-k3", "meta/llama-3.3-70b-instruct"],
+  mistral: ["mistral-small-latest", "mistral-large-latest", "codestral-latest"],
+  qwen: ["qwen-plus", "qwen-max", "qwen-turbo"],
+  xai: ["grok-2", "grok-2-mini"],
+};
+
 export function AISettingsCard({ onConfigChanged }: AISettingsCardProps) {
   const [loading, setLoading] = useState(true);
-  const [provider, setProvider] = useState("google");
-  const [deepModel, setDeepModel] = useState("gemini-2.5-flash");
-  const [quickModel, setQuickModel] = useState("gemini-2.5-flash-lite");
+  const [provider, setProvider] = useState("meta");
+  const [model, setModel] = useState("muse-spark-1.3-contributor");
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [isKeyConfigured, setIsKeyConfigured] = useState(false);
   const [configuredProviders, setConfiguredProviders] = useState<string[]>([]);
   const [supportedProviders, setSupportedProviders] = useState<Record<string, ProviderInfo>>({});
   const [catalog, setCatalog] = useState<Record<string, ModelMetadata[]>>({});
-
-  // Modal State
-  const [modalTarget, setModalTarget] = useState<"deep" | "quick" | null>(null);
 
   const [testStatus, setTestStatus] = useState<{
     running: boolean;
@@ -49,10 +59,9 @@ export function AISettingsCard({ onConfigChanged }: AISettingsCardProps) {
           setCatalog(data.catalog);
         }
         if (data.config) {
-          const prov = data.config.provider || "google";
+          const prov = data.config.provider || "meta";
           setProvider(prov);
-          setDeepModel(data.config.deep_think_llm || data.config.model || "gemini-2.5-flash");
-          setQuickModel(data.config.quick_think_llm || "gemini-2.5-flash-lite");
+          setModel(data.config.model || data.config.deep_think_llm || "muse-spark-1.3-contributor");
           setIsKeyConfigured(Boolean(data.config.isKeyConfigured));
           if (Array.isArray(data.config.configuredProviders)) {
             setConfiguredProviders(data.config.configuredProviders);
@@ -70,84 +79,19 @@ export function AISettingsCard({ onConfigChanged }: AISettingsCardProps) {
     fetchConfig();
   }, []);
 
-  const currentProviderModels = useMemo(() => {
-    const provModels = catalog[provider];
-    if (provModels && provModels.length > 0) return provModels;
-
-    // Fallback if catalog not yet loaded
-    const fallbackList: ModelMetadata[] = [
-      {
-        id: deepModel,
-        name: deepModel,
-        provider,
-        description: "Active model selection",
-        context_window: 128000,
-        category: "Active",
-        lifecycle: "ACTIVE",
-        speed: "Fast",
-        cost_class: "Standard",
-        recommended: true,
-      },
-    ];
-    if (quickModel !== deepModel) {
-      fallbackList.push({
-        id: quickModel,
-        name: quickModel,
-        provider,
-        description: "Active quick model selection",
-        context_window: 128000,
-        category: "Active",
-        lifecycle: "ACTIVE",
-        speed: "Fast",
-        cost_class: "Standard",
-      });
-    }
-    return fallbackList;
-  }, [catalog, provider, deepModel, quickModel]);
-
-  const activeDeepMetadata = useMemo(() => {
-    return currentProviderModels.find((m) => m.id === deepModel) || {
-      id: deepModel,
-      name: deepModel,
-      provider,
-      description: "",
-      context_window: 0,
-      category: "",
-      lifecycle: "ACTIVE",
-      speed: "Balanced",
-      cost_class: "Standard",
-    };
-  }, [currentProviderModels, deepModel, provider]);
-
-  const activeQuickMetadata = useMemo(() => {
-    return currentProviderModels.find((m) => m.id === quickModel) || {
-      id: quickModel,
-      name: quickModel,
-      provider,
-      description: "",
-      context_window: 0,
-      category: "",
-      lifecycle: "ACTIVE",
-      speed: "Ultra Fast",
-      cost_class: "Low",
-    };
-  }, [currentProviderModels, quickModel, provider]);
+  // Suggested model options for datalist
+  const suggestedModels = useMemo(() => {
+    const fromCat = (catalog[provider] || []).map((m) => m.id);
+    const fromDefaults = DEFAULT_POPULAR_MODELS[provider] || [];
+    return Array.from(new Set([...fromDefaults, ...fromCat]));
+  }, [catalog, provider]);
 
   const handleProviderChange = (newProv: string) => {
     setProvider(newProv);
-    const provInfo = supportedProviders[newProv];
-    const provModels = catalog[newProv];
-
-    if (provModels && provModels.length > 0) {
-      const defaultDeep = provModels.find((m) => m.default_deep)?.id || provModels[0].id;
-      const defaultQuick =
-        provModels.find((m) => m.default_quick)?.id || provModels.find((m) => m.category === "Fast")?.id || defaultDeep;
-      setDeepModel(defaultDeep);
-      setQuickModel(defaultQuick);
-    } else if (provInfo) {
-      setDeepModel(provInfo.defaultDeep || "default");
-      setQuickModel(provInfo.defaultQuick || "default");
-    }
+    const defaults = DEFAULT_POPULAR_MODELS[newProv] || [];
+    const catModels = (catalog[newProv] || []).map((m) => m.id);
+    const firstModel = catModels[0] || defaults[0] || "default";
+    setModel(firstModel);
 
     setIsKeyConfigured(configuredProviders.includes(newProv));
     setTestStatus({ running: false });
@@ -166,7 +110,7 @@ export function AISettingsCard({ onConfigChanged }: AISettingsCardProps) {
         body: JSON.stringify({
           action: "test_connection",
           provider,
-          model: deepModel,
+          model: model.trim(),
           apiKey: apiKey.trim() || undefined,
         }),
       });
@@ -205,9 +149,9 @@ export function AISettingsCard({ onConfigChanged }: AISettingsCardProps) {
         body: JSON.stringify({
           action: "save_settings",
           provider,
-          model: deepModel,
-          deep_think_llm: deepModel,
-          quick_think_llm: quickModel,
+          model: model.trim(),
+          deep_think_llm: model.trim(),
+          quick_think_llm: model.trim(),
           apiKey: apiKey.trim() || undefined,
         }),
       });
@@ -217,7 +161,7 @@ export function AISettingsCard({ onConfigChanged }: AISettingsCardProps) {
         setSaveStatus({
           saving: false,
           ok: true,
-          msg: data.message || "Settings saved and loaded into Tauric runtime.",
+          msg: `Saved & active: ${provider.toUpperCase()} (${model.trim()})`,
         });
         setIsKeyConfigured(true);
         if (!configuredProviders.includes(provider)) {
@@ -251,17 +195,17 @@ export function AISettingsCard({ onConfigChanged }: AISettingsCardProps) {
           <span className="text-xl">⚙️</span>
           <div>
             <h3 className="font-display font-bold text-base text-ink">
-              AI Model &amp; Provider Registry
+              AI Model &amp; Provider Settings
             </h3>
             <p className="text-xs text-inksoft">
-              Select dual-tier reasoning models with live provider discovery. Changes persist server-side.
+              Configure your provider, model name, and API key. Everything auto-persists to server storage.
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-white border border-white/90 text-inksoft shadow-2xs">
-            🔒 Server-Side Credential Isolation
+          <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-sakura/20 border border-sakura/30 text-ink">
+            Active: {currentProvLabel} · {model}
           </span>
           <span
             className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${
@@ -276,23 +220,20 @@ export function AISettingsCard({ onConfigChanged }: AISettingsCardProps) {
       </div>
 
       {loading ? (
-        <div className="text-xs text-inksoft py-4">Loading active configuration and model catalog...</div>
+        <div className="text-xs text-inksoft py-4">Loading active configuration...</div>
       ) : (
         <div className="flex flex-col gap-4">
-          {/* Provider Selection & API Key Row */}
-          <div className="grid sm:grid-cols-2 gap-4">
-            {/* Provider Selector */}
+          {/* Simple 3-Field Grid: Provider | Model Name | API Key */}
+          <div className="grid sm:grid-cols-3 gap-4">
+            {/* 1. LLM Provider */}
             <div>
-              <label className="block text-xs font-semibold text-ink mb-1 flex items-center justify-between">
-                <span>LLM Provider</span>
-                <span className="text-[10px] text-inksoft">
-                  {Object.keys(supportedProviders).length} Providers Supported
-                </span>
+              <label className="block text-xs font-semibold text-ink mb-1">
+                LLM Provider
               </label>
               <select
                 value={provider}
                 onChange={(e) => handleProviderChange(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-xl bg-white border border-black/10 text-ink font-medium outline-none focus:ring-1 focus:ring-sakura shadow-2xs"
+                className="w-full px-3 py-2 text-xs rounded-xl bg-white border border-black/10 text-ink font-medium outline-none focus:ring-1 focus:ring-sakura shadow-2xs cursor-pointer"
               >
                 {Object.entries(supportedProviders).map(([k, v]) => {
                   const hasKey = configuredProviders.includes(k);
@@ -304,13 +245,54 @@ export function AISettingsCard({ onConfigChanged }: AISettingsCardProps) {
                 })}
               </select>
               {supportedProviders[provider]?.description && (
-                <p className="text-[11px] text-inksoft mt-1 line-clamp-1">
+                <p className="text-[10px] text-inksoft mt-1 line-clamp-1">
                   {supportedProviders[provider].description}
                 </p>
               )}
             </div>
 
-            {/* API Key Input */}
+            {/* 2. Model Name (Editable + Suggestions) */}
+            <div>
+              <label className="block text-xs font-semibold text-ink mb-1 flex items-center justify-between">
+                <span>Model Name</span>
+                <span className="text-[10px] text-inksoft">Select or type custom</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  list="model-options"
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                  placeholder="e.g. muse-spark-1.3-contributor"
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-white border border-black/10 text-ink font-mono outline-none focus:ring-1 focus:ring-sakura shadow-2xs"
+                />
+                <datalist id="model-options">
+                  {suggestedModels.map((mId) => (
+                    <option key={mId} value={mId} />
+                  ))}
+                </datalist>
+              </div>
+
+              {/* Quick suggestions pills */}
+              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                {suggestedModels.slice(0, 3).map((mId) => (
+                  <button
+                    key={mId}
+                    type="button"
+                    onClick={() => setModel(mId)}
+                    className={`text-[10px] px-2 py-0.5 rounded-md font-mono transition-colors cursor-pointer ${
+                      model === mId
+                        ? "bg-sakura/30 text-ink font-bold border border-sakura/40"
+                        : "bg-white/80 text-inksoft hover:text-ink border border-black/5"
+                    }`}
+                  >
+                    {mId.split("/").pop()}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 3. API Key */}
             <div>
               <label className="block text-xs font-semibold text-ink mb-1 flex items-center justify-between">
                 <span>API Key ({currentProvLabel})</span>
@@ -325,8 +307,8 @@ export function AISettingsCard({ onConfigChanged }: AISettingsCardProps) {
                   onChange={(e) => setApiKey(e.target.value)}
                   placeholder={
                     isKeyConfigured
-                      ? "•••••••••••••••• (Leave blank to keep stored key)"
-                      : `Enter ${currentProvLabel} API key...`
+                      ? "•••••••••••••••• (Leave blank to keep current)"
+                      : `Enter ${currentProvLabel} key...`
                   }
                   className="w-full px-3 py-2 pr-8 text-xs rounded-xl bg-white border border-black/10 text-ink font-mono outline-none focus:ring-1 focus:ring-sakura shadow-2xs"
                 />
@@ -340,111 +322,12 @@ export function AISettingsCard({ onConfigChanged }: AISettingsCardProps) {
                 </button>
               </div>
               <p className="text-[10px] text-inksoft mt-1">
-                Keys are held in server memory and synced to .env. Never sent to browser client.
+                Keys persist server-side in .env and runtime memory.
               </p>
             </div>
           </div>
 
-          {/* Model Pickers: Deep Reasoning & Quick Analysis */}
-          <div className="grid sm:grid-cols-2 gap-4 pt-2">
-            {/* 1. Deep Reasoning Model Card */}
-            <div className="p-3.5 rounded-xl border border-black/10 bg-white/80 flex flex-col justify-between gap-2 shadow-2xs">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-bold text-ink flex items-center gap-1.5">
-                    <span>🧠</span> Deep Reasoning Engine
-                  </span>
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-900 border border-purple-500/20">
-                    Analyst Debate &amp; Risk
-                  </span>
-                </div>
-                <p className="text-[11px] text-inksoft mb-2">
-                  Powers multi-agent research debate, technical valuation, and risk council.
-                </p>
-
-                <div className="p-2.5 rounded-lg bg-cream/40 border border-black/5 flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="font-semibold text-xs text-ink truncate">
-                      {activeDeepMetadata.name || deepModel}
-                    </div>
-                    <code className="text-[10px] font-mono text-inksoft">
-                      {deepModel}
-                    </code>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    {activeDeepMetadata.speed && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-white border border-black/5 text-inksoft">
-                        {activeDeepMetadata.speed}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-2 flex items-center justify-between">
-                <span className="text-[10px] text-inksoft">
-                  {currentProviderModels.length} models available
-                </span>
-                <GlassButton
-                  size="sm"
-                  variant="subtle"
-                  onClick={() => setModalTarget("deep")}
-                >
-                  Browse &amp; Change ➔
-                </GlassButton>
-              </div>
-            </div>
-
-            {/* 2. Quick Analysis Model Card */}
-            <div className="p-3.5 rounded-xl border border-black/10 bg-white/80 flex flex-col justify-between gap-2 shadow-2xs">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-bold text-ink flex items-center gap-1.5">
-                    <span>⚡</span> Fast / High-Throughput Engine
-                  </span>
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-900 border border-sky-500/20">
-                    Triage &amp; Quick Checks
-                  </span>
-                </div>
-                <p className="text-[11px] text-inksoft mb-2">
-                  Powers rapid signal triage, quick thesis generation, and live summaries.
-                </p>
-
-                <div className="p-2.5 rounded-lg bg-cream/40 border border-black/5 flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="font-semibold text-xs text-ink truncate">
-                      {activeQuickMetadata.name || quickModel}
-                    </div>
-                    <code className="text-[10px] font-mono text-inksoft">
-                      {quickModel}
-                    </code>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    {activeQuickMetadata.speed && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-white border border-black/5 text-inksoft">
-                        {activeQuickMetadata.speed}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-2 flex items-center justify-between">
-                <span className="text-[10px] text-inksoft">
-                  {currentProviderModels.length} models available
-                </span>
-                <GlassButton
-                  size="sm"
-                  variant="subtle"
-                  onClick={() => setModalTarget("quick")}
-                >
-                  Browse &amp; Change ➔
-                </GlassButton>
-              </div>
-            </div>
-          </div>
-
-          {/* Action Buttons & Status Feedback */}
+          {/* Action Row */}
           <div className="flex items-center justify-between flex-wrap gap-3 pt-2 border-t border-black/5">
             <div className="flex items-center gap-2 flex-wrap">
               <GlassButton
@@ -471,7 +354,7 @@ export function AISettingsCard({ onConfigChanged }: AISettingsCardProps) {
             <div className="text-xs">
               {testStatus.running && (
                 <span className="text-inksoft font-medium animate-pulse">
-                  Testing server-side connection to {provider.toUpperCase()}...
+                  Testing server connection to {currentProvLabel}...
                 </span>
               )}
               {testStatus.msg && !testStatus.running && (
@@ -496,30 +379,18 @@ export function AISettingsCard({ onConfigChanged }: AISettingsCardProps) {
               )}
             </div>
           </div>
+
+          {/* Persistence & Crash Recovery Guarantee Callout */}
+          <div className="p-3 rounded-xl bg-white/60 border border-black/5 flex items-center justify-between flex-wrap gap-2 text-[11px] text-inksoft">
+            <div className="flex items-center gap-2">
+              <span className="text-base">💾</span>
+              <span>
+                <strong className="text-ink font-semibold">Continuous State &amp; Progress Persistence:</strong> All episode cycles, open trades, portfolio equity, and learned rules are saved after every tick. If a run or process is interrupted, it resumes automatically from the exact same point.
+              </span>
+            </div>
+          </div>
         </div>
       )}
-
-      {/* Command-Palette Model Picker Modal */}
-      <ModelSearchModal
-        isOpen={modalTarget !== null}
-        onClose={() => setModalTarget(null)}
-        onSelect={(selectedId) => {
-          if (modalTarget === "deep") {
-            setDeepModel(selectedId);
-          } else if (modalTarget === "quick") {
-            setQuickModel(selectedId);
-          }
-          setModalTarget(null);
-        }}
-        models={currentProviderModels}
-        providerName={currentProvLabel}
-        currentModelId={modalTarget === "deep" ? deepModel : quickModel}
-        title={
-          modalTarget === "deep"
-            ? "Select Deep Reasoning Model"
-            : "Select Fast / High-Throughput Model"
-        }
-      />
     </div>
   );
 }

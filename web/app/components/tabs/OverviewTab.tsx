@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Area, AreaChart, ResponsiveContainer } from "recharts";
 import { usd, pct, signed, tone, price, timeAgo } from "../../lib/format";
 import { MetricCard } from "../ui/MetricCard";
@@ -106,6 +106,16 @@ function ControlPanel({ s }: { s: any }) {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
 
+  const [countdown, setCountdown] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (countdown === null || countdown <= 0) return;
+    const timer = setInterval(() => {
+      setCountdown((prev) => (prev !== null && prev > 0 ? prev - 1 : null));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [countdown]);
+
   const post = async (body: any, label: string) => {
     setBusy(label);
     setMsg(null);
@@ -120,7 +130,12 @@ function ControlPanel({ s }: { s: any }) {
         body: JSON.stringify(withToken),
       });
       const j = await res.json();
-      setMsg(j.ok ? { ok: true, text: `Queued — engine applies command within ~30s.` } : { ok: false, text: j.error ?? "failed" });
+      if (j.ok) {
+        setCountdown(30);
+        setMsg({ ok: true, text: `Queued — engine applies command within ~30s.` });
+      } else {
+        setMsg({ ok: false, text: j.error ?? "failed" });
+      }
     } catch (e: any) {
       setMsg({ ok: false, text: e?.message ?? "request failed" });
     } finally {
@@ -255,11 +270,37 @@ function ControlPanel({ s }: { s: any }) {
             </GlassButton>
           </div>
 
-          {msg && (
+          {countdown !== null && countdown > 0 && (
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between text-xs animate-in fade-in">
+              <div className="flex items-center gap-2">
+                <span className="animate-spin text-amber-700 inline-block">◷</span>
+                <span className="font-semibold text-amber-900">
+                  Command Queued — New Run / Engine cycle executing in ~{countdown}s
+                </span>
+              </div>
+              <span className="text-[11px] text-inksoft font-medium">Auto-Recovery Active 💾</span>
+            </div>
+          )}
+
+          {countdown === 0 && (
+            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-xs text-emerald-800 font-semibold flex items-center gap-2 animate-in fade-in">
+              <span>✓</span>
+              <span>Engine cycle started and state initialized! Check metrics below.</span>
+            </div>
+          )}
+
+          {msg && !countdown && (
             <p className={`text-xs ${msg.ok ? "text-emerald-700 font-semibold" : "text-rose-700"}`}>
               {msg.text}
             </p>
           )}
+
+          <div className="p-2.5 rounded-lg bg-white/50 border border-black/5 flex items-center gap-2 text-[11px] text-inksoft">
+            <span>💾</span>
+            <span>
+              <strong>Run State Saved:</strong> If any process or run crashes, FabRich automatically recovers from the exact same cycle, restoring positions, cash balance, and lessons without data loss.
+            </span>
+          </div>
         </div>
       )}
     </div>

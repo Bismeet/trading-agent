@@ -319,30 +319,36 @@ async def get_config_options() -> ConfigOptionsResponse:
         if last_quick and last_quick.startswith("meta/"):
             last_quick = last_quick[len("meta/"):]
 
-    if last_provider and any(p.key == last_provider for p in providers):
-        default_provider = last_provider
-        default_deep = last_deep or (formatted_models.get(last_provider, {}).get("deep", [{}])[0].get("value", "custom"))
-        default_quick = last_quick or (formatted_models.get(last_provider, {}).get("quick", [{}])[0].get("value", "custom"))
-        default_thinking = last_thinking or ("high" if default_provider == "google" else "medium")
+    env_prov = os.getenv("TRADINGAGENTS_LLM_PROVIDER")
+    env_deep = os.getenv("TRADINGAGENTS_DEEP_THINK_LLM")
+    env_quick = os.getenv("TRADINGAGENTS_QUICK_THINK_LLM") or env_deep
+
+    chosen_prov = last_provider or env_prov
+    if chosen_prov and any(p.key == chosen_prov for p in providers):
+        default_provider = chosen_prov
+        default_deep = last_deep or env_deep or (formatted_models.get(chosen_prov, {}).get("deep", [{}])[0].get("value", "custom"))
+        default_quick = last_quick or env_quick or (formatted_models.get(chosen_prov, {}).get("quick", [{}])[0].get("value", "custom"))
+        default_thinking = last_thinking or ("high" if default_provider in ("google", "meta") else "medium")
     else:
         # Check providers with active keys
-        has_openrouter_key = bool(os.getenv("OPENROUTER_API_KEY"))
         has_meta_key = bool(os.getenv("META_API_KEY") or os.getenv("META_MUSE_API_KEY"))
+        has_google_key = bool(os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY"))
+        has_openrouter_key = bool(os.getenv("OPENROUTER_API_KEY"))
 
-        if has_openrouter_key:
-            default_provider = "openrouter"
-            default_deep = "nvidia/nemotron-3-super-120b-a12b:free"
-            default_quick = "nvidia/nemotron-3-super-120b-a12b:free"
+        if has_meta_key:
+            default_provider = "meta"
+            default_deep = "muse-spark-1.3-contributor"
+            default_quick = "muse-spark-1.3-contributor"
             default_thinking = "high"
         elif has_google_key:
             default_provider = "google"
             default_deep = "gemini-2.5-flash-lite"
             default_quick = "gemini-2.5-flash-lite"
             default_thinking = "high"
-        elif has_meta_key:
-            default_provider = "meta"
-            default_deep = "muse-spark-1.3-contributor"
-            default_quick = "muse-spark-1.3-contributor"
+        elif has_openrouter_key:
+            default_provider = "openrouter"
+            default_deep = "nvidia/nemotron-3-super-120b-a12b:free"
+            default_quick = "nvidia/nemotron-3-super-120b-a12b:free"
             default_thinking = "high"
         else:
             default_provider = DEFAULT_CONFIG.get("llm_provider", "openai")

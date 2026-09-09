@@ -41,6 +41,8 @@ export function TopHeader({
       ? "stale"
       : "live";
 
+  const nextCycleSec = hbAgeSec != null ? Math.max(1, 30 - (hbAgeSec % 30)) : null;
+
   const engineLabel =
     engineStatus === "error"
       ? `Offline (${err ?? "failed"})`
@@ -48,7 +50,7 @@ export function TopHeader({
       ? `Reconnecting${fails ? ` (${fails})` : ""}`
       : engineStatus === "stale"
       ? `Stale (${hbAgeSec ? `${hbAgeSec}s` : "no hb"})`
-      : `Engine Live${cycle ? ` · c${cycle}` : ""}`;
+      : `Engine Live${cycle ? ` · c${cycle}` : ""}${nextCycleSec != null ? ` (next in ${nextCycleSec}s)` : ""}`;
 
   const aiGateActive = aiConfig?.enabled !== false;
   const aiStatus = !aiConnected
