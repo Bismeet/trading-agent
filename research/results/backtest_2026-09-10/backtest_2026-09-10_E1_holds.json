@@ -1,0 +1,143 @@
+{
+  "totals": {
+    "trades": 73,
+    "vetoes": 0,
+    "net_pnl": -16.8475,
+    "gross_pnl": -20.6167,
+    "fees": 6.6393,
+    "slippage": 6.6972,
+    "funding": 10.4086,
+    "finalEquity": 93.5611,
+    "returnPct": -6.4389,
+    "maxDrawdownPct": 54.5366
+  },
+  "perStrategy": {
+    "tsmom": {
+      "n": 47,
+      "wins": 20,
+      "losses": 27,
+      "winRate": 0.425531914893617,
+      "avgWinR": 1.471401899380924,
+      "avgLossR": 1.1386459378166782,
+      "expectancyR": -0.027987283690039035,
+      "profitFactor": 0.957213561016749,
+      "sqn": -0.12437176838774532,
+      "wilsonLb": 0.2951341600182584,
+      "breakevenWr": 0.43625481555895074,
+      "tStat": -0.12437176838774532,
+      "dsr": {
+        "sr": -0.018,
+        "dsr": 0.12,
+        "sr0": 0.155,
+        "pass": false
+      },
+      "symbols": 5,
+      "avg_hold_h": 203.74,
+      "net_usd": -19.1912,
+      "fees_usd": 4.2006,
+      "slippage_usd": 4.2371,
+      "funding_usd": 7.7886,
+      "exit_mix": {
+        "stop-loss": 18,
+        "time-stop": 15,
+        "take-profit": 9,
+        "backtest-end": 5
+      }
+    },
+    "rsi2dip": {
+      "n": 22,
+      "wins": 12,
+      "losses": 10,
+      "winRate": 0.5454545454545454,
+      "avgWinR": 0.6008323666943635,
+      "avgLossR": 0.8830444880969711,
+      "expectancyR": -0.07365711275624319,
+      "profitFactor": 0.8164920904348139,
+      "sqn": -0.3284197687535839,
+      "wilsonLb": 0.3465947328904156,
+      "breakevenWr": 0.595092837552983,
+      "tStat": -0.3284197687535839,
+      "dsr": {
+        "sr": -0.07,
+        "dsr": 0.077,
+        "sr0": 0.23,
+        "pass": false
+      },
+      "symbols": 5,
+      "avg_hold_h": 64.36,
+      "net_usd": -21.744,
+      "fees_usd": 2.0681,
+      "slippage_usd": 2.0863,
+      "funding_usd": 1.5999,
+      "exit_mix": {
+        "take-profit": 2,
+        "time-stop": 17,
+        "stop-loss": 3
+      }
+    },
+    "donchian": {
+      "n": 4,
+      "wins": 4,
+      "losses": 0,
+      "winRate": 1,
+      "avgWinR": 1.3655307396165484,
+      "avgLossR": 0,
+      "expectancyR": 1.3655307396165484,
+      "profitFactor": null,
+      "sqn": 2.415854652591416,
+      "wilsonLb": 0.5100999795960008,
+      "breakevenWr": 0,
+      "tStat": 2.415854652591416,
+      "dsr": {
+        "sr": 0,
+        "dsr": 0,
+        "sr0": 0,
+        "pass": false
+      },
+      "symbols": 3,
+      "avg_hold_h": 216,
+      "net_usd": 24.0877,
+      "fees_usd": 0.3706,
+      "slippage_usd": 0.3738,
+      "funding_usd": 1.0201,
+      "exit_mix": {
+        "time-stop": 2,
+        "take-profit": 2
+      }
+    }
+  },
+  "config": {
+    "capital": 100,
+    "lev": 5,
+    "topN": 0,
+    "gate": false,
+    "council": true,
+    "fees": true,
+    "funding8h": 0.0001,
+    "markEma": 1,
+    "maxPos": 10,
+    "strategies": [
+      "tsmom",
+      "donchian",
+      "rsi2dip",
+      "mom_trend"
+    ],
+    "symbols": [
+      "BTC-USD",
+      "ETH-USD",
+      "SOL-USD",
+      "XRP-USD",
+      "DOGE-USD"
+    ],
+    "hold": {
+      "tsmom": 336,
+      "donchian": 240,
+      "rsi2dip": 72,
+      "mom_trend": 336
+    },
+    "out": "research/results/backtest_2026-09-10_E1_holds.json",
+    "selftest": false,
+    "synthetic": false,
+    "bars": 365
+  }
+}
