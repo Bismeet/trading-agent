@@ -1,6 +1,8 @@
 # FabRich — Autonomous AI Leveraged Trading Engine
 
 > **Paper Trading & Simulation Engine**: Real market observations, simulated orders and execution. No guaranteed edge. Returns are not proof of skill. High leverage can wipe out simulated collateral. Never connect this project to real-money execution. This is not financial advice.
+>
+> 🤖 **AI Agent & Auditor Blueprint**: For an exhaustive, ground-truth audit manual detailing every single file, perpetual derivative formula, risk guardrail, fail-closed contract, and diagnostic procedure for AI agents, refer to [**`AI_AGENT_AUDIT_README.md`**](file:///c:/Users/bisme/OneDrive/Desktop/trading%20bot/AI_AGENT_AUDIT_README.md).
 
 FabRich is a self-contained, autonomous paper-trading platform designed for simulated cryptocurrency and equity derivatives trading. It integrates deterministic quantitative strategies with an embedded **TauricResearch TradingAgents** multi-agent AI research and decision filter layer, rule-based multi-agent risk councils, next-tick order execution, realistic exchange mechanics (perpetual funding, taker/maker fees, quadratic slippage, mark-to-market liquidation), continuous learning and memory persistence, and an interactive real-time web dashboard.
 
