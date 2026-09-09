@@ -1,6 +1,6 @@
 # TradingAgents x FabRich Hybrid AI Integration Guide
 
-This document describes the architectural integration of the local **TauricResearch TradingAgents** system as an autonomous AI decision and filtering layer for the **FabRich** trading engine.
+This document describes the architectural integration of the embedded **TauricResearch TradingAgents** system (located under `ai/tauric/`) as an autonomous AI decision and filtering layer inside the consolidated **FabRich** single-repository trading engine.
 
 ---
 
@@ -205,50 +205,55 @@ FabRich remains the unified single frontend (`web/` Next.js dashboard):
 
 ---
 
-## 8. Local Startup Sequence
+## 8. Embedded Local Startup Sequence
 
-To run both systems locally in parallel:
+TauricResearch TradingAgents is embedded directly under `ai/tauric/`. All services launch from within the FabRich repository:
 
-### Terminal 1: TauricResearch TradingAgents Backend
-```bash
-cd "c:\Users\bisme\OneDrive\Desktop\TradingAgents"
-
-# Activate Python environment
-.venv\Scripts\Activate.ps1
-
-# Set Google Gemini API Key (or other provider key)
-$env:GOOGLE_API_KEY="your-gemini-api-key"
-
-# Start the FastAPI service on port 8000
-python web/backend/main.py
+### Option A: Start All Services Concurrently (Recommended)
+```powershell
+# From FabRich root
+npm run start:all
+# OR:
+.\scripts\start-all.ps1
 ```
-*Verify endpoint:* Open `http://127.0.0.1:8000/docs` in your browser.
+This starts:
+1. **Tauric AI Service:** `http://127.0.0.1:8000` (FastAPI backend)
+2. **FabRich Engine:** 30-second continuous paper-trading loop
+3. **Web Dashboard:** `http://localhost:3000` (Next.js frontend)
 
-### Terminal 2: FabRich Trading Engine
-```bash
-cd "c:\Users\bisme\OneDrive\Desktop\trading bot"
+### Option B: Run Services Individually
+```powershell
+# Terminal 1: Tauric AI Decision Service
+npm run ai
+# (or .\.venv\Scripts\python.exe ai\tauric\server.py)
 
-# Start the paper-trading engine (30s continuous loop)
+# Terminal 2: FabRich Trading Engine
 node scripts/v2/engine.mjs
+
+# Terminal 3: FabRich Next.js Web Dashboard
+npm run web
+# (or cd web && npm run dev)
 ```
 
-### Terminal 3: FabRich Web Frontend
-```bash
-cd "c:\Users\bisme\OneDrive\Desktop\trading bot\web"
-
-# Start the Next.js unified dashboard on port 3000
-npm run dev
+To stop all background services cleanly:
+```powershell
+npm run stop:all
+# OR:
+.\scripts\stop-all.ps1
 ```
-*Access dashboard:* Open `http://localhost:3000` and click the **AI Analysis** tab.
 
 ---
 
 ## 9. Verification & Test Results
 
-The integration was verified using an isolated test suite mocking the TradingAgents service:
+The integrated system is validated with two complementary test suites:
 
-```bash
-node --test tests/ai_gate.test.mjs
+```powershell
+# 1. FabRich Node.js Unit Suite (70 tests including ai_gate.test.mjs)
+npm test
+
+# 2. Tauric Python Integration Suite (16 tests in ai/tauric/tests)
+npm run test:ai
 ```
 
 ### Test Coverage (12 / 12 Passing)

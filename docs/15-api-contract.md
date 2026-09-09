@@ -20,6 +20,12 @@ Route is dynamic (`force-dynamic`, `revalidate=0`), sets `Cache-Control: no-stor
 | memory.jsonl | Last 20, reversed | v2.memory newest first |
 | equity.v2.jsonl | Downsample to maximum 320 points | v2.equity; algorithm and episode selection unspecified |
 | trades.v2.jsonl | Last 60, reversed | v2.trades newest first |
+| ai_pending.v2.json | Active requests queue | v2.ai.pending |
+| ai_decisions.v2.jsonl | Last 50, reversed | v2.ai.decisions newest first |
+
+### Proxy Endpoint — GET/POST `/api/ai`
+Implemented in `web/app/api/ai/route.ts`:
+Proxies client requests to the embedded Tauric FastAPI backend on `http://127.0.0.1:8000` (e.g. `/api/health`). Client browsers never communicate directly with external LLM providers or hold private API keys.
 
 Source says return a v2 object holding all of that plus serverTs; exact top-level placement of serverTs/config is ambiguous. Missing files return safe empty defaults so dashboard does not crash. SOURCE DOES NOT SPECIFY status codes/error bodies for malformed files, mixed-write snapshots, unsupported methods or server failures. Safe dashboard defaults must not be mistaken for authority to reset engine balances.
 

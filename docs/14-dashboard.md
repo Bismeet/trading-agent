@@ -19,7 +19,8 @@ Sidebar: round pink-to-gold F badge; display name exactly `@FabRichhhhhh` (sourc
 | Strategies / statistical evidence | strategies name/status/n/kelly/expectancy/PF/DSR/confidence | Title “Strategy Book”; intro below. Cards with status active green/candidate lavender/probation gold/retired red; n and Kelly; four-cell grid Exp R (colored), PF, DSR, Conf. All early candidates: evaluation note |
 | World / optional context | signals.world fearGreedCrypto/fearGreedStocks, regime,fundingRate,oiUsd,whaleCrowd,newsMood,putCall,macro,thesis,fed,headlines | Two FNG labeled gauges, band words Extreme Fear…Extreme Greed, red→gold→green bar/marker. “Macro & Flow”: Regime, Funding 8h, Crypto OI, Whales, News mood, Put/Call. Macro line, quiet blossom thesis card, Headlines list of Fed/news lines |
 | Lessons / retained lessons | memory title/kind/text/regime/importance | Title “Lessons Banked”; intro below; cards with kind blowup red/win green/else gold, text and regime/importance. Empty: sleepy Mascot and note |
-| Trades / execution record | trades open/close,side,symbol,leverage,reason,close realized profit/open margin | Title “Recent Fills”; per fill open/close pill, LONG/SHORT, symbol/leverage/reason; right side colored realized profit for close or margin for open |
+| Trades / execution record | trades open/close,side,symbol,leverage,reason,close realized profit/open margin | Title “Recent Fills”; per fill open/close pill, LONG/SHORT, symbol/leverage/reason; right side colored realized profit for close or margin for open. Includes AI badges (`AI: APPROVED`) |
+| AI Analysis / research pipeline | `data.v2.ai.pending`, `data.v2.ai.decisions` | Title “AI Analysis (Tauric Multi-Agent)”; status badge (healthy/fail-closed), model provider; active pending candidates, approved/rejected decision cards; deep-dive drawer with analyst debate transcripts; full historical decision audit ledger |
 
 Exact source copy:
 

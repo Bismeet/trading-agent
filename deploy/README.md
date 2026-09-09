@@ -40,11 +40,12 @@ node tests/live-smoke.mjs # provider health check
 - Validated: 58/58 tests, tsc clean, next build clean, live --once + live-smoke green.
 
 ## Security rules (do not skip)
-- **Never expose port 3002 publicly.** The dashboard is read-only, but it also
+- **Never expose port 3000 publicly.** The dashboard is read-only, but it also
   advertises "my bot runs here". Keep it firewalled and view it via SSH tunnel:
-  `ssh -L 3002:localhost:3002 user@vps` → http://localhost:3002,
+  `ssh -L 3000:localhost:3000 user@vps` → http://localhost:3000,
   or via Tailscale/Cloudflare Access if you want zero-config private access.
-- Don't put API keys/credentials anywhere in this repo — there are none by design.
+- API keys (e.g. `GOOGLE_API_KEY`) belong strictly in your machine-local `.env` file,
+  which is gitignored. Never commit `.env` or paste secrets into public repositories.
 - `data/` is machine-local runtime state. Do not commit or sync it between hosts;
   each host starts its own Episode 1. Copying it around risks double-counting trades.
 

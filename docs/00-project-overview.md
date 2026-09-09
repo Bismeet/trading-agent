@@ -22,7 +22,7 @@ The dashboard is read-only: Overview, Positions, Episodes, Evolution, Strategies
 | Runtime LLM | None; P4/P6/P8 explicitly say zero AI tokens |
 | Model training / autonomous strategy invention | SOURCE DOES NOT SPECIFY; `ibreakout` is a fixed seed despite its “discovered” name |
 
-FinMem and ReasoningBank are inspirations, not reproduced research systems. TradingAgents is not referenced in the supplied source. Retrieved memories are shown in a digest; an algorithm translating lesson text into trading-rule edits is not specified.
+FinMem and ReasoningBank were the original conceptual inspirations. In the current production release, the platform has integrated an embedded **TauricResearch TradingAgents** multi-agent graph (under `ai/tauric/`) as an asynchronous research filter layer (`POST /api/hybrid/decision`), while keeping FabRich as the sole authoritative execution, sizing, risk council, and accounting engine.
 
 ## In-scope source subsystems
 

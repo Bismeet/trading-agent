@@ -12,10 +12,24 @@ flowchart TD
   Lib[lib.mjs: public quotes, history, FX] --> Engine
   State --> Engine
   Engine --> Mark[perp.mjs: mark, funding, exits]
-  Pending[pending.v2.json] --> Size[sizing.mjs]
-  Engine --> Strategies[strategies.mjs]
-  Strategies --> Size
-  Size --> Execute[Paper open and close]
+  Engine --> Strategies[strategies.mjs: 6 seeds]
+  Strategies --> RawIntents[Candidate Trade Intents]
+  
+  subgraph AIGateModule ["AI Research Filter Layer (ai/tauric/)"]
+    RawIntents --> AIGate[v2/ai_gate.mjs: SHA-256 dedupe]
+    AIGate --> AIPending[data/ai_pending.v2.json: async queue]
+    AIPending -->|POST /api/hybrid/decision| TauricAPI[Tauric FastAPI: port 8000]
+    TauricAPI --> MultiAgentGraph[LangGraph: Analysts, Debate, Portfolio]
+    MultiAgentGraph --> Decision[Decision: Buy/Sell vs Hold]
+    Decision --> AIDecisions[data/ai_decisions.v2.jsonl]
+    AIDecisions --> ApprovedIntents[getValidApprovedIntents]
+  end
+
+  ApprovedIntents --> Council[agents.mjs: Council Analyst -> Risk -> Investor]
+  Council --> Size[sizing.mjs: Kelly, volatility, wallet clamp]
+  Size --> Pending[pending.v2.json: Next-tick queue]
+  Pending --> NextTickBarrier[Next-Tick Barrier t+1]
+  NextTickBarrier --> Execute[Paper open and close]
   Mark --> Execute
   Execute --> Journal[journal and fills]
   Journal --> Brain[brain.mjs]
@@ -28,16 +42,18 @@ flowchart TD
   Engine --> State
   Engine --> Signals[signals.v2.json]
   Engine --> Equity[equity.v2.jsonl]
-  Signals --> API[Next filesystem GET /api/state]
+  Signals --> API[Next filesystem GET /api/state + /api/ai]
   State --> API
   Learn --> API
   Equity --> API
   Journal --> API
+  AIPending --> API
+  AIDecisions --> API
   API --> Root[Root.tsx polling every 6 seconds]
-  Root --> Dashboard[DashboardV2.tsx: eight views]
+  Root --> Dashboard[DashboardV2.tsx: nine views, AI Analysis]
 ```
 
-`Journal → API` represents fills read from trades, not raw pre/post journal exposure. The route reads named v2 files directly; it does not invoke the engine or brain.
+`Journal → API` represents fills read from trades, not raw pre/post journal exposure. The route reads named v2 files directly; it does not invoke the engine or brain. The AI gate executes asynchronously and fail-closed: failures default to `AI_UNAVAILABLE` and do not block the 30-second engine cycle.
 
 ## System-level answers
 
@@ -63,8 +79,9 @@ flowchart TD
 | Market context | Separate quote-based trading regime and macro/news-derived world regime; not interchangeable |
 | Evolution | End-of-run and live cadence risk dials; generation increments on episode end |
 | Trades | Fill events in trades.v2.jsonl; analysis context/result in journal.v2.jsonl |
-| UI state | Route combines signals/state and bounded append-only histories; Root polls every six seconds |
-| Continuous run | Engine loops every 30 seconds; separate Next dev process at port 3002 |
+| AI research filter | Embedded Tauric FastAPI (`POST /api/hybrid/decision`) evaluates proposed side; fail-closed |
+| UI state | Route combines signals/state, AI queue/decisions, and histories; Root polls every six seconds |
+| Continuous run | Engine loops every 30 seconds; Next dev process at port 3000; Tauric AI at port 8000 |
 
 ## Boundary distinctions that must remain visible
 
