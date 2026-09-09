@@ -3,6 +3,7 @@
 import React from "react";
 import { timeAgo } from "../../lib/format";
 import { Mascot } from "../visuals";
+import { SectionExplainer } from "../ui/SectionExplainer";
 
 interface LessonsTabProps {
   v2: any;
@@ -23,6 +24,12 @@ export function LessonsTab({ v2 }: LessonsTabProps) {
 
   return (
     <div className="flex flex-col gap-6">
+      <SectionExplainer
+        title="Lessons Bank"
+        definition="learned insights from past trade outcomes, mistake logs, and rule evolutions."
+        details="Permanent cognitive memory bank capturing post-trade reflections, liquidation autopsies, and strategic rule modifications to prevent repeated errors across episodes."
+      />
+
       {/* Header Banner */}
       <div className="card-fintech p-5">
         <h1 className="font-display text-xl sm:text-2xl font-bold text-ink">

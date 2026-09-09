@@ -3,6 +3,7 @@
 import React from "react";
 import { usd, pct, tone, timeAgo } from "../../lib/format";
 import { Mascot } from "../visuals";
+import { SectionExplainer } from "../ui/SectionExplainer";
 
 interface EpisodesTabProps {
   v2: any;
@@ -15,6 +16,12 @@ export function EpisodesTab({ v2, s }: EpisodesTabProps) {
 
   return (
     <div className="flex flex-col gap-6">
+      <SectionExplainer
+        title="Episodes"
+        definition="trading sessions / cycles and historical market episodes."
+        details="Tracks each distinct trading cycle from launch to completion, logging starting capital, final return, liquidation events, goal achievements, and lessons learned."
+      />
+
       {/* Header Banner */}
       <div className="card-fintech p-5">
         <h1 className="font-display text-xl sm:text-2xl font-bold text-ink">

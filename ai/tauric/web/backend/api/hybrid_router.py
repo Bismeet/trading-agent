@@ -83,12 +83,33 @@ def _build_config(request: HybridDecisionRequest) -> dict[str, Any]:
     but is self-contained so the endpoint can run without the web job store.
     """
     config = copy.deepcopy(DEFAULT_CONFIG)
+    from tradingagents.default_config import _apply_env_overrides
+    _apply_env_overrides(config)
+
+    # Apply runtime preferences saved from web UI or settings
+    try:
+        from web.backend.api.routes import _load_preferences
+        prefs = _load_preferences()
+        if prefs.get("llm_provider"):
+            config["llm_provider"] = prefs["llm_provider"]
+        if prefs.get("deep_think_llm"):
+            config["deep_think_llm"] = prefs["deep_think_llm"]
+        if prefs.get("quick_think_llm"):
+            config["quick_think_llm"] = prefs["quick_think_llm"]
+    except Exception:
+        pass
+
+    # Ensure google provider defaults to gemini-2.5-flash if not specified
+    if config.get("llm_provider") == "google":
+        if not config.get("deep_think_llm") or "gpt" in str(config.get("deep_think_llm")).lower():
+            config["deep_think_llm"] = "gemini-2.5-flash"
+        if not config.get("quick_think_llm") or "gpt" in str(config.get("quick_think_llm")).lower():
+            config["quick_think_llm"] = "gemini-2.5-flash"
+
     config["llm_max_retries"] = 4
     config["max_debate_rounds"] = 1
     config["max_risk_discuss_rounds"] = 1
     config["output_language"] = "English"
-    # Checkpoint is intentionally left at its default; the endpoint is stateless
-    # per request and does not resume prior runs.
     config["checkpoint_enabled"] = False
     config["backend_url"] = os.getenv("TRADINGAGENTS_BACKEND_URL") or config.get("backend_url")
     return config

@@ -5,6 +5,7 @@ import { usd, pct, signed, tone, price } from "../../lib/format";
 import { StatusBadge } from "../ui/StatusBadge";
 import { LiquidRunwayMeter } from "../ui/LiquidRunwayMeter";
 import { Mascot } from "../visuals";
+import { SectionExplainer } from "../ui/SectionExplainer";
 
 interface PositionsTabProps {
   s: any;
@@ -21,6 +22,12 @@ export function PositionsTab({
 
   return (
     <div className="flex flex-col gap-6">
+      <SectionExplainer
+        title="Positions"
+        definition="trades currently being held/open."
+        details="Displays current open leveraged positions, live mark prices, unrealized P&L, liquidation runway, entry fill details, and attached AI analysis context."
+      />
+
       {/* Header Banner */}
       <div className="card-fintech p-5">
         <div className="flex items-center justify-between flex-wrap gap-2">

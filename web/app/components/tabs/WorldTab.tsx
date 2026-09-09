@@ -2,6 +2,7 @@
 
 import React from "react";
 import { usd } from "../../lib/format";
+import { SectionExplainer } from "../ui/SectionExplainer";
 
 const BAND_WORDS: Record<string, string> = {
   extreme_fear: "Extreme Fear",
@@ -63,6 +64,12 @@ export function WorldTab({ s }: WorldTabProps) {
 
   return (
     <div className="flex flex-col gap-6">
+      <SectionExplainer
+        title="World / Macro"
+        definition="external macro regime, multi-timeframe market conditions, and environment context."
+        details="Aggregates market-wide sentiment indicators, crypto and equity fear & greed indexes, Federal Reserve rate forecasts, news feeds, and funding regimes."
+      />
+
       {/* Header Banner */}
       <div className="card-fintech p-5">
         <h1 className="font-display text-xl sm:text-2xl font-bold text-ink">

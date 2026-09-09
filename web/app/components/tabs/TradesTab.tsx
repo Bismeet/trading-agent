@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { usd, signed, tone, timeAgo } from "../../lib/format";
 import { StatusBadge } from "../ui/StatusBadge";
 import { Mascot } from "../visuals";
+import { SectionExplainer } from "../ui/SectionExplainer";
 
 interface TradesTabProps {
   v2: any;
@@ -38,6 +39,12 @@ export function TradesTab({
 
   return (
     <div className="flex flex-col gap-6">
+      <SectionExplainer
+        title="Trades / Fills"
+        definition="history of executed orders and trades."
+        details="Complete audit trail of all filled orders, realized P&L, trading fees, executed sizes, exit reasons, and corresponding AI decisions."
+      />
+
       {/* Header Banner with Filters */}
       <div className="card-fintech p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>

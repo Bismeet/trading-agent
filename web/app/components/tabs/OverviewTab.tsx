@@ -8,6 +8,8 @@ import { StatusBadge } from "../ui/StatusBadge";
 import { LiquidRunwayMeter } from "../ui/LiquidRunwayMeter";
 import { GlassButton } from "../ui/GlassButton";
 import { Mascot } from "../visuals";
+import { SectionExplainer } from "../ui/SectionExplainer";
+
 
 function Spark({ points, up }: { points: any[]; up: boolean }) {
   if (!points?.length) {
@@ -305,6 +307,12 @@ export function OverviewTab({
 
   return (
     <div className="flex flex-col gap-6">
+      <SectionExplainer
+        title="Overview"
+        definition="overall health of FabRich, portfolio, P&L and system status."
+        details="Real-time oversight of capital balances, net P&L, deterministic decision council votes, live equity progression, and engine risk parameters."
+      />
+
       {/* 1. Episode Banner */}
       {lastEp && (
         <div className="card-fintech p-4 bg-gradient-to-r from-cream via-cream2 to-cream flex items-center justify-between gap-3 flex-wrap">

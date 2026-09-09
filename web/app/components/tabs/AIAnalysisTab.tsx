@@ -8,6 +8,8 @@ import { AIDecisionLedger } from "../ai/AIDecisionLedger";
 import { SegmentedFilter, FilterOption } from "../ui/SegmentedFilter";
 import { StatusBadge } from "../ui/StatusBadge";
 import { GlassButton } from "../ui/GlassButton";
+import { SectionExplainer } from "../ui/SectionExplainer";
+import { AISettingsCard } from "../ai/AISettingsCard";
 
 interface AIAnalysisTabProps {
   v2: any;
@@ -143,16 +145,26 @@ export function AIAnalysisTab({ v2 }: AIAnalysisTabProps) {
     );
   }, [selectedCandidate, councilDecisions]);
 
+  const [techOpen, setTechOpen] = useState(false);
+
   return (
     <div className="flex flex-col gap-6">
-      {/* 1. Header & Institutional Status Banner */}
-      <div className="card-fintech p-5 sm:p-6 bg-gradient-to-r from-cream via-cream2 to-cream border border-white/90">
+      {/* Product Structure Explainer */}
+      <SectionExplainer
+        title="AI Analysis"
+        definition="strategy candidates sent to AI, approval/rejection results, reasoning, confidence, and models used."
+        details="Autonomous multi-agent research & debate filter powered by Tauric TradingAgents. Evaluates candidate trade setups across technical structure, social sentiment, news catalysts, and macro indicators before capital commitment."
+      />
+
+      {/* SECTION A — AI STATUS */}
+      <section className="card-fintech p-5 sm:p-6 bg-gradient-to-r from-cream via-cream2 to-cream border border-white/90">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
+              <span className="live-dot w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm" />
               <span className="text-xl sm:text-2xl">🧠</span>
               <h1 className="font-display text-xl sm:text-2xl font-bold text-ink tracking-tight">
-                Tauric Research TradingAgents Desk
+                Section A: AI Desk Status
               </h1>
             </div>
             <p className="text-xs sm:text-sm text-inksoft mt-1 max-w-2xl leading-relaxed">
@@ -182,52 +194,86 @@ export function AIAnalysisTab({ v2 }: AIAnalysisTabProps) {
             Timeout: {cfg.requestTimeoutMs ?? 10000}ms · Non-Blocking Async Poller
           </div>
         </div>
-      </div>
 
-      {/* 2. Visual Pipeline Flow Diagram */}
-      <AIPipelineFlow
-        selectedCandidate={selectedCandidate}
-        counts={counts}
-      />
-
-      {/* 3. Candidate Filter Bar & Search */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <SegmentedFilter
-          options={filterOptions}
-          value={filter}
-          onChange={setFilter}
-        />
-
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search symbol..."
-              value={symbolSearch}
-              onChange={(e) => setSymbolSearch(e.target.value)}
-              className="px-3 py-1.5 rounded-full text-xs bg-white/70 border border-white/90 text-ink placeholder:text-inksoft/60 outline-none w-36 sm:w-48 focus:bg-white focus:ring-1 focus:ring-sakura"
-            />
-            {symbolSearch && (
-              <button
-                onClick={() => setSymbolSearch("")}
-                className="absolute right-2.5 top-1.5 text-xs text-inksoft hover:text-ink cursor-pointer"
-              >
-                ✕
-              </button>
-            )}
+        {/* Quick candidate counters */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4 pt-3 border-t border-black/5">
+          <div className="p-2.5 rounded-xl bg-white/60 border border-white/80 text-center">
+            <span className="text-[10px] uppercase font-semibold text-inksoft">Candidates</span>
+            <div className="font-display text-lg font-bold text-ink tnum">{counts.candidates}</div>
+          </div>
+          <div className="p-2.5 rounded-xl bg-white/60 border border-white/80 text-center">
+            <span className="text-[10px] uppercase font-semibold text-inksoft">Analyzing</span>
+            <div className="font-display text-lg font-bold text-ink tnum">{counts.analyzing}</div>
+          </div>
+          <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center">
+            <span className="text-[10px] uppercase font-semibold text-emerald-800">Approved</span>
+            <div className="font-display text-lg font-bold text-emerald-800 tnum">{counts.approved}</div>
+          </div>
+          <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-center">
+            <span className="text-[10px] uppercase font-semibold text-rose-800">Rejected</span>
+            <div className="font-display text-lg font-bold text-rose-800 tnum">{counts.rejected}</div>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* 4. Candidate Cards Grid */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-display font-semibold text-sm sm:text-base text-ink">
-            Evaluated Opportunities ({filteredCandidates.length})
+      {/* SECTION B — AI SETTINGS */}
+      <section>
+        <AISettingsCard />
+      </section>
+
+      {/* SECTION C — PIPELINE */}
+      <section className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display font-bold text-base text-ink">
+            Section C: Multi-Agent Decision Pipeline
           </h2>
           <span className="text-xs text-inksoft">
-            Click any candidate to inspect full 4-analyst debate trace
+            Market Observation ➔ Deterministic Strategy ➔ AI Gate ➔ Risk Council ➔ Execution
           </span>
+        </div>
+        <AIPipelineFlow
+          selectedCandidate={selectedCandidate}
+          counts={counts}
+        />
+      </section>
+
+      {/* SECTION D — CANDIDATE ACTIVITY */}
+      <section className="flex flex-col gap-4">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h2 className="font-display font-bold text-base text-ink">
+              Section D: Candidate Activity ({filteredCandidates.length})
+            </h2>
+            <p className="text-xs text-inksoft">
+              Real-time intents submitted by deterministic strategies for AI debate.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <SegmentedFilter
+              options={filterOptions}
+              value={filter}
+              onChange={setFilter}
+            />
+
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search symbol..."
+                value={symbolSearch}
+                onChange={(e) => setSymbolSearch(e.target.value)}
+                className="px-3 py-1.5 rounded-full text-xs bg-white/70 border border-white/90 text-ink placeholder:text-inksoft/60 outline-none w-36 sm:w-48 focus:bg-white focus:ring-1 focus:ring-sakura"
+              />
+              {symbolSearch && (
+                <button
+                  onClick={() => setSymbolSearch("")}
+                  className="absolute right-2.5 top-1.5 text-xs text-inksoft hover:text-ink cursor-pointer"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         {filteredCandidates.length === 0 ? (
@@ -258,15 +304,73 @@ export function AIAnalysisTab({ v2 }: AIAnalysisTabProps) {
             ))}
           </div>
         )}
-      </div>
+      </section>
 
-      {/* 5. Persisted Decision Ledger Audit Table */}
-      <AIDecisionLedger
-        decisions={decisions}
-        onSelectDecision={handleSelectCandidate}
-      />
+      {/* SECTION E — RECENT AI DECISIONS */}
+      <section className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display font-bold text-base text-ink">
+            Section E: Recent AI Decisions ({decisions.length})
+          </h2>
+          <span className="text-xs text-inksoft">
+            Audited results from data/ai_decisions.v2.jsonl
+          </span>
+        </div>
+        <AIDecisionLedger
+          decisions={decisions}
+          onSelectDecision={handleSelectCandidate}
+        />
+      </section>
 
-      {/* 6. Deep Dive Slide-Over Drawer */}
+      {/* SECTION F — TECHNICAL DETAILS */}
+      <section className="card-fintech p-5 border border-white/90">
+        <div className="flex items-center justify-between cursor-pointer" onClick={() => setTechOpen(!techOpen)}>
+          <div className="flex items-center gap-2">
+            <span className="text-base">🔧</span>
+            <h3 className="font-display font-bold text-sm text-ink">
+              Section F: Technical Architecture &amp; Integration Protocol
+            </h3>
+          </div>
+          <button className="text-xs text-inksoft font-semibold hover:text-ink">
+            {techOpen ? "Collapse" : "Expand Details"}
+          </button>
+        </div>
+
+        {techOpen && (
+          <div className="mt-4 pt-4 border-t border-black/5 text-xs text-inksoft flex flex-col gap-3 animate-in fade-in duration-150">
+            <div className="grid sm:grid-cols-3 gap-3">
+              <div className="p-3 rounded-xl bg-white/60 border border-white/80">
+                <span className="font-semibold text-ink block mb-1">Architecture Boundary</span>
+                <p className="leading-relaxed text-[11px]">
+                  FabRich remains the source of truth for execution, risk engine, position sizing, and account balance. Tauric TradingAgents operates strictly as an advisory AI decision layer.
+                </p>
+              </div>
+
+              <div className="p-3 rounded-xl bg-white/60 border border-white/80">
+                <span className="font-semibold text-ink block mb-1">Fail-Closed Guarantee</span>
+                <p className="leading-relaxed text-[11px]">
+                  If the AI service is unreachable, times out (&gt;10s), or returns an invalid schema, the order is dropped safely. Capital is never exposed without approval.
+                </p>
+              </div>
+
+              <div className="p-3 rounded-xl bg-white/60 border border-white/80">
+                <span className="font-semibold text-ink block mb-1">Self-Contained Tauric</span>
+                <p className="leading-relaxed text-[11px]">
+                  Embedded directly under <code className="bg-black/5 px-1 rounded">ai/tauric/</code>. Fully independent with zero external repository paths or external runtimes.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-black/2 border border-black/5 font-mono text-[11px] overflow-x-auto">
+              <div>Endpoint: POST http://127.0.0.1:8000/api/hybrid/decision</div>
+              <div>State Files: data/ai_pending.v2.json · data/ai_decisions.v2.jsonl · data/trades.v2.jsonl</div>
+              <div>Rate Limiting: Free Tier 5 RPM safe batching with fallback closure</div>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Slide-Over Drawer */}
       <AIDeepDiveDrawer
         candidate={selectedCandidate}
         isOpen={drawerOpen}

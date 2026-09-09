@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel
+
 
 from cli.utils import _llm_provider_table
 from tradingagents.default_config import DEFAULT_CONFIG
@@ -521,3 +523,68 @@ async def save_preferences_endpoint(payload: dict[str, Any]) -> dict[str, str]:
     """Save user UI preferences to ~/.tradingagents/web_preferences.json."""
     _save_preferences(payload)
     return {"status": "ok"}
+
+
+class TestConnectionRequest(BaseModel):
+    provider: str
+    model: str
+    api_key: str | None = None
+
+
+@router.post("/config/test-connection")
+async def test_connection_endpoint(payload: TestConnectionRequest) -> dict[str, Any]:
+    """Perform a real server-side validation of provider, model, and credentials."""
+    from tradingagents.llm_clients.factory import create_llm_client
+    from dotenv import load_dotenv
+
+    prov = payload.provider.lower().strip()
+    model = payload.model.strip()
+    kwargs: dict[str, Any] = {}
+
+    key = (payload.api_key or "").strip()
+    if key:
+        kwargs["api_key"] = key
+    else:
+        repo_root = Path(__file__).resolve().parent.parent.parent.parent
+        load_dotenv(repo_root / ".env", override=True)
+        env_var = get_api_key_env(prov)
+        existing_key = os.getenv(env_var) if env_var else None
+        if prov == "google" and not existing_key:
+            existing_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+        if existing_key:
+            kwargs["api_key"] = existing_key
+
+    try:
+        client = create_llm_client(provider=prov, model=model, **kwargs)
+        llm = client.get_llm()
+        await asyncio.to_thread(llm.invoke, "Ping")
+        return {"ok": True, "message": "Connection successful"}
+    except Exception as exc:
+        err_str = str(exc).lower()
+        if "401" in err_str or "unauthorized" in err_str or "api_key_invalid" in err_str or "invalid api key" in err_str:
+            return {"ok": False, "error": "Invalid API key"}
+        if "404" in err_str or "not_found" in err_str or "model not found" in err_str:
+            return {"ok": False, "error": "Model unavailable"}
+        if "429" in err_str or "resource_exhausted" in err_str or "quota" in err_str:
+            return {"ok": True, "message": "Connection successful (API rate limit warning: free tier has 5 RPM)"}
+        return {"ok": False, "error": f"Provider unavailable: {str(exc)[:60]}"}
+
+
+@router.get("/config/active")
+async def get_active_config() -> dict[str, Any]:
+    """Return active provider, model, and whether API key is configured (NEVER exposing key)."""
+    prefs = _load_preferences()
+    prov = prefs.get("llm_provider") or os.getenv("TRADINGAGENTS_LLM_PROVIDER") or "google"
+    model = prefs.get("deep_think_llm") or os.getenv("TRADINGAGENTS_DEEP_THINK_LLM") or "gemini-2.5-flash"
+    env_var = get_api_key_env(prov)
+    has_key = bool(os.getenv(env_var)) if env_var else True
+    if prov == "google" and (os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")):
+        has_key = True
+    return {
+        "ok": True,
+        "provider": prov,
+        "model": model,
+        "isKeyConfigured": has_key,
+        "status": "online",
+    }
+

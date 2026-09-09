@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Mascot } from "../visuals";
+import { SectionExplainer } from "../ui/SectionExplainer";
 
 interface EvolutionTabProps {
   v2: any;
@@ -12,6 +13,12 @@ export function EvolutionTab({ v2 }: EvolutionTabProps) {
 
   return (
     <div className="flex flex-col gap-6">
+      <SectionExplainer
+        title="Evolution"
+        definition="learning system, strategy fitness scores, mutation history, and parameter adaptation."
+        details="Tracks generational progress, risk cap unlocks, Kelly sizing multiplier adaptations, mutation logs, and parameter shifts between episodes."
+      />
+
       {/* Header Banner */}
       <div className="card-fintech p-5">
         <h1 className="font-display text-xl sm:text-2xl font-bold text-ink">

@@ -4,6 +4,7 @@ import React from "react";
 import { tone } from "../../lib/format";
 import { StatusBadge } from "../ui/StatusBadge";
 import { Mascot } from "../visuals";
+import { SectionExplainer } from "../ui/SectionExplainer";
 
 interface StrategiesTabProps {
   v2: any;
@@ -15,6 +16,12 @@ export function StrategiesTab({ v2 }: StrategiesTabProps) {
 
   return (
     <div className="flex flex-col gap-6">
+      <SectionExplainer
+        title="Strategies"
+        definition="deterministic rule-based trading strategies generating trade candidates."
+        details="Displays the six core mathematical strategies (EMA Trend, Bollinger Mean Reversion, Funding Arbitrage, RSI Momentum, VWAP Breakout, Volatility Squeeze), tracking their edge metrics, Deflated Sharpe Ratio (DSR), win rates, and promotion lifecycle."
+      />
+
       {/* Header Banner */}
       <div className="card-fintech p-5">
         <div className="flex items-center justify-between flex-wrap gap-2">
