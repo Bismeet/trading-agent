@@ -1,0 +1,5 @@
+episode_num,episode_id,duration_hours,starting_capital_usd,final_equity_usd,return_pct,max_drawdown_pct,trades_count,open_forfeited_count,fees_usd,funding_usd,liquidations_count,best_strategy,worst_strategy,dominant_regime,end_reason,generation
+1,ep_1788790395156_1,5.969959,100,98.411255,-1.588745,1.600126,5,5,0.879313,-0.01099,0,tsmom,tsmom,broad_up,manual-restart,1
+2,ep_1788811887018_2,1.004927,100,99.891911,-0.108089,0.152618,5,0,0.061361,-0,0,tsmom,tsmom,broad_up,time,1
+3,ep_1788815504776_3,1.006665,100,99.829493,-0.170507,0.193008,5,0,0.061268,0,0,tsmom,tsmom,broad_up,time,2
+4,ep_1788819128795_4,23.712311,100,99.652759,-0.347241,0.347241,5,0,0.060956,-0.000019,0,tsmom,tsmom,broad_up,time,3

@@ -26,22 +26,32 @@ SOURCE REQUIREMENT: strategy-specific learned Kelly starts the bet; account Kell
 - At goal start exactly, no progress bonus; immediately above start, multiplier approaches 1.55. This discontinuity is in the literal algorithm. At progress approaching 1 from below, multiplier approaches 1; at/above 1 there is no bonus.
 - US leverage is at most 4 even when ORB proposes 5. Indian max=5, crypto max=40, further limited by state caps.
 
-## Other risk controls: stated versus wired
+## Implemented Multi-Agent Risk Council (`scripts/v2/agents.mjs`)
 
-| Control | Source evidence | Gap |
+Every candidate trade surviving strategy generation and AI research filtering must pass the three-agent **Risk Council** before sizing:
+
+1. **Analyst Agent (`evalAnalyst`):**
+   - Evaluates broad market regime compatibility.
+   - Vetoes crypto longs during `crypto_down` regimes.
+   - Vetoes US equity longs during `us_down` regimes.
+2. **Risk Agent (`evalRisk`):**
+   - **Position Limit:** Rejects candidates if current open positions count >= 10 (`maxConcurrentPositions`).
+   - **Crypto Cluster Control:** Maximum of 4 concurrent open crypto positions across the portfolio. Uses `intent.market === 'crypto'` to prevent correlated crypto downside cascades.
+   - **Drawdown Brake:** Halts or vetoes aggressive risk when portfolio max drawdown exceeds 10%.
+3. **Investor Agent (`evalInvestor`):**
+   - **Stale Quote Guard:** Rejects orders if quote age > 5 minutes (300,000ms).
+   - **Wallet Affordability:** Verifies available free wallet collateral > $2.00.
+
+| Control | Implementation | Target & Guarantee |
 |---|---|---|
-| One position per symbol / ten total | P4/P8 | Outstanding intents, duplicate symbols and queued closes not fully specified |
-| Two-minute cooldown | P4 set after queueing | Restart persistence, rejected-order behavior unspecified |
-| Market-open/enabled | P4 | Holiday/DST/early-close/session mapping and long/short availability unspecified |
-| Missing/stale prohibition | P4/P8 | Numeric freshness thresholds absent |
-| Tier max leverage | P2 helper, P1 tier settings | Exact sizeOrder only checks market/account caps; integration enforcement unspecified |
-| Minimum notional USD 2 | P1 | No rejection branch in P5/P8 text |
-| Root maxPositionPct .30 / minCashPct .02 | P1 | P5 does not use maxPositionPct; .98 wallet cap is hardcoded |
-| ddCaution .12, ddHalt .20, hardFloorPct .70 | P1 | No complete riskState/capital-floor enforcement algorithm |
-| Price-distance stop/target | P4 | Can be beyond liquidation at leverage; not a guaranteed maximum loss |
-| Trail ROI .5/.25, hold 4h | P1/P8 | Activation/giveback convention and time-stop reason unresolved |
-| US annual borrow .08 | P1 | Not charged anywhere explicitly in P8 |
-| Kelly max .7 | P1 | P6 increments do not explicitly clamp account Kelly |
+| One position per symbol / ten total | `evalRisk` & engine | Enforced both at Council and execution |
+| Crypto correlation cluster | `evalRisk` | Hard cap of 4 concurrent crypto positions |
+| Two-minute cooldown | `histCache.cooldowns` | Prevents immediate re-entry after close |
+| Missing/stale prohibition | `evalInvestor` | Quotes >5m marked stale and blocked |
+| Leverage ceilings | `sizeOrder` | 20x US equity, 12x crypto, 10x Indian equity; 5x survival cap |
+| Minimum wallet | `evalInvestor` | Free wallet < $2.00 blocks new entries |
+| Drawdown protection | `evalRisk` & survivalGate | 10% drawdown engages capital protection |
+| AI Filter Gating | `v2/ai_gate.mjs` | Fail-closed gate: timeouts and errors evaluate to `AI_UNAVAILABLE` |
 
 ## RECOMMENDED IMPROVEMENT — required correctness baseline
 

@@ -2,5 +2,19 @@ node_modules
 .next
 data/*.log
 
+# local secrets — never commit
+.env
+
 # runtime data (simulated account state, journals, caches) — local only
 data/
+
+# Python local venv & cache
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# logs
+logs/

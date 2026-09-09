@@ -19,7 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <div className="sky" />
-        <div className="sun" />
+        <div className="aurora" />
         {children}
       </body>
     </html>

@@ -13,20 +13,32 @@ import { finalizeEpisode, nextEpisode, setGoal } from "./episode.mjs";
 export const SURVIVAL_MAX_LEV = 5;
 
 // Read + consume pending commands. Returns list applied.
+// [RELIABILITY] poison hygiene: a command that keeps failing gets an
+// `attempts` counter; after MAX_ATTEMPTS it is moved to `errors` (capped at
+// MAX_ERRORS) so one bad command can never fill/block the queue (B02).
+export const CMD_MAX_ATTEMPTS = 5;
+export const CMD_MAX_ERRORS = 10;
 export function consumeCommands(state, cfg) {
   const file = readJSON(V2.commands, { commands: [] });
   const applied = [];
   const remaining = [];
+  const errors = Array.isArray(file.errors) ? file.errors.slice(-CMD_MAX_ERRORS) : [];
   for (const cmd of file.commands || []) {
     try {
       applyCommand(state, cfg, cmd);
       applied.push(cmd);
     } catch (e) {
       cmd.error = e.message;
-      remaining.push(cmd); // keep malformed commands visible instead of silently dropping
+      cmd.attempts = (cmd.attempts ?? 0) + 1;
+      if (cmd.attempts >= CMD_MAX_ATTEMPTS) {
+        errors.push({ ...cmd, droppedAt: now(), reason: `failed ${cmd.attempts}x; dropped` });
+        while (errors.length > CMD_MAX_ERRORS) errors.shift();
+      } else {
+        remaining.push(cmd); // retried next cycle, with visible attempts count
+      }
     }
   }
-  writeJSON(V2.commands, { commands: remaining });
+  writeJSON(V2.commands, { commands: remaining, ...(errors.length ? { errors } : {}) });
   return applied;
 }
 

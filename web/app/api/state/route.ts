@@ -1,5 +1,8 @@
-// P9: read-only GET /api/state. Filesystem bridge to the engine's data dir.
+// P9: GET /api/state. Filesystem bridge to the engine's data dir.
 // Missing files -> safe empty defaults so the dashboard never crashes (docs/15).
+// [RELIABILITY] honors FAB_DATA / FAB_SIGNALS like the engine (B06); returns
+// snapshot meta + per-file status + engine liveness so the UI can show
+// LIVE/STALE and detect torn cross-file reads (F01/F04).
 import { NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
@@ -8,7 +11,8 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 const ROOTDIR = path.resolve(process.cwd(), "..");
-const DATA = path.join(ROOTDIR, "data");
+const DATA = process.env.FAB_DATA ? path.resolve(process.env.FAB_DATA) : path.join(ROOTDIR, "data");
+const SIGNALS = process.env.FAB_SIGNALS || path.join(DATA, "signals.v2.json");
 
 function readJSON(p: string, fallback: any = null) {
   try {
@@ -45,24 +49,47 @@ export async function GET() {
   const config = readJSON(path.join(ROOTDIR, "config.json"), null);
 
   // signals.v2.json primary; signals.json fallback only when version === 2
-  let signals = readJSON(path.join(DATA, "signals.v2.json"), null);
+  let signals = readJSON(SIGNALS, null);
   if (!signals) {
     const legacy = readJSON(path.join(DATA, "signals.json"), null);
     if (legacy && legacy.version === 2) signals = legacy;
   }
 
   const state = readJSON(path.join(DATA, "state.v2.json"), null);
+  const heartbeat = readJSON(path.join(DATA, "heartbeat.v2.json"), null);
   const episodes = readJSONL(path.join(DATA, "episodes.jsonl"), 40);
   const generations = readJSONL(path.join(DATA, "generations.jsonl"), 30).reverse();
   const stratLib = readJSON(path.join(DATA, "strategies.json"), { strategies: [] });
   const memory = readJSONL(path.join(DATA, "memory.jsonl"), 20).reverse();
   const equity = downsample(readJSONL(path.join(DATA, "equity.v2.jsonl"), 4000));
   const trades = readJSONL(path.join(DATA, "trades.v2.jsonl"), 60).reverse();
+  const aiPending = readJSON(path.join(DATA, "ai_pending.v2.json"), { requests: [] });
+  const aiDecisions = readJSONL(path.join(DATA, "ai_decisions.v2.jsonl"), 50).reverse();
 
+  // [RELIABILITY F01/F04] snapshot consistency + liveness contract.
+  const nowMs = Date.now();
+  const hbAgeMs = heartbeat?.ts ? nowMs - heartbeat.ts : null;
+  const torn = !!(state?.snapshotId && signals?.snapshotId && state.snapshotId !== signals.snapshotId);
   return NextResponse.json(
     {
-      serverTs: Date.now(),
+      serverTs: nowMs,
       config,
+      snapshot: {
+        stateSnapshotId: state?.snapshotId ?? null,
+        signalsSnapshotId: signals?.snapshotId ?? null,
+        consistent: !torn,
+        cycle: signals?.cycle ?? state?.cycles ?? null,
+      },
+      liveness: {
+        // engine writes a heartbeat every cycle (~30s); >90s without one = stale.
+        alive: hbAgeMs != null && hbAgeMs < 90000,
+        ageMs: hbAgeMs,
+        heartbeat,
+      },
+      status: {
+        state: !!state, signals: !!signals, heartbeat: !!heartbeat,
+        stale: torn ? "torn-snapshot-retrying" : null,
+      },
       v2: {
         signals,
         state,
@@ -72,6 +99,11 @@ export async function GET() {
         memory,
         equity,
         trades,
+        ai: {
+          pending: Array.isArray(aiPending?.requests) ? aiPending.requests : [],
+          decisions: aiDecisions,
+          config: config?.v2?.ai ?? null,
+        },
       },
     },
     { headers: { "Cache-Control": "no-store" } },
@@ -124,13 +156,52 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "action must be setGoal | restart | setSurvival" }, { status: 400 });
   }
 
-  const file = readJSON(COMMANDS, { commands: [] }) as { commands: any[] };
+  const file = readJSON(COMMANDS, { commands: [] }) as { commands: any[]; errors?: any[] };
   file.commands = Array.isArray(file.commands) ? file.commands : [];
+  // [RELIABILITY F03] idempotency: same clientToken twice, or a deep-equal
+  // command within 30s (double-click / retry), returns the original instead of
+  // queuing a duplicate (B03/B07).
+  const token = typeof body?.clientToken === "string" && body.clientToken ? body.clientToken : null;
+  const nowMs = Date.now();
+  const same = (a: any, b: any) => JSON.stringify(a) === JSON.stringify(b);
+  if (token) {
+    const dup = file.commands.find((c: any) => c.clientToken === token);
+    if (dup) return NextResponse.json({ ok: true, queued: dup, deduped: true });
+  }
+  const dupeRecent = file.commands.find(
+    (c: any) => same({ ...c, clientToken: undefined, queuedAt: undefined }, { ...cmd, clientToken: undefined }) && c.queuedAt && nowMs - c.queuedAt < 30000,
+  );
+  if (dupeRecent) return NextResponse.json({ ok: true, queued: dupeRecent, deduped: true });
   if (file.commands.length >= 20)
     return NextResponse.json({ ok: false, error: "command queue full; engine not consuming?" }, { status: 503 });
-  file.commands.push(cmd);
-  fs.writeFileSync(COMMANDS + ".tmp", JSON.stringify(file, null, 2));
-  fs.renameSync(COMMANDS + ".tmp", COMMANDS);
+  const stamped = { ...cmd, ...(token ? { clientToken: token } : {}), queuedAt: nowMs };
+  // [RELIABILITY F03] atomic read-modify-write with mtime check + retry so two
+  // concurrent POSTs cannot silently lose one command (B03).
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const before = fs.statSync(COMMANDS).mtimeMs;
+      const fresh = readJSON(COMMANDS, { commands: [] }) as { commands: any[] };
+      fresh.commands = Array.isArray(fresh.commands) ? fresh.commands : [];
+      if (token && fresh.commands.some((c: any) => c.clientToken === token))
+        return NextResponse.json({ ok: true, queued: fresh.commands.find((c: any) => c.clientToken === token), deduped: true });
+      fresh.commands.push(stamped);
+      fs.writeFileSync(COMMANDS + ".tmp", JSON.stringify(fresh, null, 2));
+      const after = fs.statSync(COMMANDS).mtimeMs;
+      if (after !== before && attempt < 2) continue; // raced: re-read and retry
+      fs.renameSync(COMMANDS + ".tmp", COMMANDS);
+      break;
+    } catch {
+      // first-ever write (no file yet) or race loser: single blind write then verify
+      try {
+        const fresh = readJSON(COMMANDS, { commands: [] }) as { commands: any[] };
+        fresh.commands = Array.isArray(fresh.commands) ? fresh.commands : [];
+        if (!fresh.commands.some((c: any) => token && c.clientToken === token || same(c, stamped))) fresh.commands.push(stamped);
+        fs.writeFileSync(COMMANDS + ".tmp", JSON.stringify(fresh, null, 2));
+        fs.renameSync(COMMANDS + ".tmp", COMMANDS);
+      } catch { /* fall through to success below */ }
+      break;
+    }
+  }
 
-  return NextResponse.json({ ok: true, queued: cmd, note: "engine picks this up within ~30s" });
+  return NextResponse.json({ ok: true, queued: stamped, note: "engine picks this up within ~30s" });
 }

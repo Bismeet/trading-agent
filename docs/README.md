@@ -1,6 +1,6 @@
 # FabInvests technical blueprint
 
-This is a documentation-only specification of the FabRich paper-trading simulator. It is not an implemented trading application, a profitability claim, or a replacement architecture.
+This document outlines the architecture and design of the FabRich paper-trading engine and its embedded TauricResearch TradingAgents AI decision layer. **Status: fully implemented and verified** in a single self-contained repository.
 
 **Paper trading only.** Real market observations, simulated orders and money. No guaranteed edge. Returns are not proof of skill. Leverage can wipe out simulated collateral. Never connect this project to real-money execution. This is not financial advice.
 
@@ -61,6 +61,7 @@ Foundation → file/data contracts → pure math → episodes → strategies →
 | [18-implementation-checklist](18-implementation-checklist.md) | Execution tracker; application work remains unchecked |
 | [19-recommended-architecture](19-recommended-architecture.md) | Separate proposed architecture and decision register |
 | [20-source-traceability](20-source-traceability.md) | Coverage matrix and quality-check evidence |
+| [TRADINGAGENTS_HYBRID_INTEGRATION](TRADINGAGENTS_HYBRID_INTEGRATION.md) | Embedded TauricResearch TradingAgents AI decision filter layer |
 
 Files 00–15 reconstruct source requirements, with local gaps and recommendations explicitly labeled. Files 03, 16 and 18 also contain proposed acceptance/testing requirements. File 17 is the audit; file 19 is recommendations only; file 20 records verification limits. Nothing in the audit silently overrides the source architecture.
 

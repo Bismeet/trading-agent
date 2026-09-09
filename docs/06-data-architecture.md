@@ -29,6 +29,9 @@ All paths below are inside DATA. E = episode transition; G = generation incremen
 | world → `world.v2.json` | collectWorld | brain.collectWorldV2, engine publication | World snapshot/digest; rewrite; preserve last-good observations across runs conceptually; reset behavior unspecified |
 | worldThesis → `world_thesis.v2.json` | SOURCE DOES NOT SPECIFY | No concrete later reader | Reserved thesis path; generation/format/reset unspecified |
 | worldCache → `world_cache_v2/` | world collector | world collector | Per-source last-good cache, TTL 5–60 minutes; child filenames and schemas unspecified; disposable cache, but no reset command specified |
+| aiPending → `ai_pending.v2.json` | ai_gate.enqueueCandidate / drain | engine / API | Active asynchronous queue holding requests (`pending`, `approved`, `rejected`, `expired`, `failed`, `consumed`); rewritten snapshot |
+| aiDecisions → `ai_decisions.v2.jsonl` | ai_gate.recordDecision | API / UI | Immutable historical audit ledger of all AI research deliberations and verdicts; append |
+| heartbeat → `heartbeat.v2.json` | engine cycle | API / monitor | Periodic engine process liveness and cycle heartbeat (`ts`, `pid`, `cycle`, `snapshotId`); rewrite |
 
 Additional root PATHS keys: `config,state,signals,prices,trades,equity,journal,playbook,log`. P2 does not enumerate their filenames except root `config.json`; P9 explicitly introduces fallback `data/signals.json`, usable only when its `version` is 2. Do not infer a complete legacy data-file tree from these key names. `.tmp` artifacts are temporary write intermediates, not authoritative snapshots. In-memory daily/intraday histories, opening range and cooldown state have no mandated persistent filenames.
 

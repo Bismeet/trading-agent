@@ -63,6 +63,9 @@ export function readJSONL(p, limit = 0) {
 export function log(msg) {
   const line = `${iso(now())} ${msg}`;
   console.log(line);
+  // [RELIABILITY B11] engine.v2.log is the canonical v2 log; keep the legacy
+  // engine.log path as a mirror for one release so old tail scripts keep working.
+  try { ensureData(); fs.appendFileSync(path.join(DATA, "engine.v2.log"), line + "\n"); } catch { /* non-fatal */ }
   try { ensureData(); fs.appendFileSync(PATHS.log, line + "\n"); } catch { /* non-fatal */ }
 }
 

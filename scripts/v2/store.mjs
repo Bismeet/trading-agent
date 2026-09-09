@@ -25,6 +25,9 @@ export const V2 = {
   worldCache: path.join(DATA, "world_cache_v2"),
   commands: path.join(DATA, "commands.v2.json"), // owner control channel (dashboard -> engine)
   agents: path.join(DATA, "agents.v2.jsonl"),   // multi-agent deliberation log (owner extension)
+  heartbeat: path.join(DATA, "heartbeat.v2.json"), // engine liveness (F04)
+  aiPending: path.join(DATA, "ai_pending.v2.json"),
+  aiDecisions: path.join(DATA, "ai_decisions.v2.jsonl"),
 };
 
 export const round = (x, d = 2) => {

@@ -19,6 +19,7 @@ import { onClose, scoreStrategies, onEpisodeEnd, evolveTick, buildBrainV2 } from
 import { collectWorld } from "./world.mjs";
 import { consumeCommands, survivalGate } from "./controls.mjs";
 import { agentCouncil } from "./agents.mjs";
+import { enqueueCandidate, drainAndProcessAiQueue, getValidApprovedIntents } from "./ai_gate.mjs";
 
 const STALE_MS = 5 * 60000; // [DECISION] quote older than 5 minutes is stale
 
@@ -136,7 +137,7 @@ function executeOpen(state, cfg, order, q, t) {
       trade_id: order.trade_id, strategy_id: order.strategy_id ?? null,
       setup_tag: order.setup_tag ?? null, stopPct: order.stopPct ?? null,
       targetPct: order.targetPct ?? null, reason: order.reason ?? null,
-      regime: state.regime,
+      regime: state.regime, ai: order.aiDecision ?? null,
     },
   }, t);
   const fee = tradeFee(pos.notional, cfg.v2.perpFees.taker);
@@ -152,11 +153,13 @@ function executeOpen(state, cfg, order, q, t) {
     symbol: order.symbol, market, side: order.side,
     strategy_id: pos.openMeta.strategy_id, setup_tag: pos.openMeta.setup_tag,
     regime: state.regime, leverage: order.leverage, margin: order.marginUsd, entry,
+    ai: order.aiDecision ?? null,
   });
   appendJSONL(V2.trades, {
     eventId: `f_${t}_${order.symbol}_open`, ts: t, episodeId: state.episodeId,
     op: "open", side: order.side, symbol: order.symbol, leverage: order.leverage,
     reason: order.reason, price: entry, margin: order.marginUsd, trade_id: pos.openMeta.trade_id,
+    ai: order.aiDecision ?? null,
   });
   log(`OPEN ${order.side.toUpperCase()} ${order.symbol} ${order.leverage}x @ ${entry.toFixed(4)} margin ${order.marginUsd.toFixed(2)} (${order.reason ?? "manual"})`);
   return true;
@@ -253,6 +256,7 @@ function publishSignals(state, cfg, quotes, world) {
   const signals = {
     ts: now(), iso: iso(), version: 2,
     episodeNum: state.episodeNum, episodeId: state.episodeId,
+    snapshotId: state.snapshotId ?? null, cycle: state.cycles ?? null,
     equity: eq, walletBalance: state.walletBalance, startingCapital: state.startingCapital,
     goal: g, totalPnl: eq - state.startingCapital,
     totalPnlPct: state.startingCapital > 0 ? (100 * (eq - state.startingCapital)) / state.startingCapital : null,
@@ -319,12 +323,23 @@ async function cycle(cfg) {
   }
   const eq = computeEquity(state);
 
-  // 6. run strategies -> agent council deliberates -> survivors queue for a LATER tick (D01)
+  // 6. run strategies -> AI gate -> agent council -> survivors queue for a LATER tick (D01)
   // Survival mode: no new entries while underwater; 5x leverage cap otherwise.
   const gate = survivalGate(state);
   const rawIntents = gate.blocked ? [] : runStrategies(state, eq, cfg, histCache);
+
+  let candidatesForCouncil = rawIntents;
+  if (cfg?.v2?.ai?.enabled) {
+    for (const intent of rawIntents) {
+      const q = quotes?.[intent.symbol];
+      enqueueCandidate(intent, q, state, cfg);
+    }
+    drainAndProcessAiQueue(cfg, state);
+    candidatesForCouncil = getValidApprovedIntents(cfg, t);
+  }
+
   // council uses the last collected world snapshot (step 8 refreshes it after execution)
-  const council = agentCouncil(rawIntents, state, cfg, readJSON(V2.world, null), quotes);
+  const council = agentCouncil(candidatesForCouncil, state, cfg, readJSON(V2.world, null), quotes);
   if (council.log.length) {
     log(`agents: ${council.approved.length} approved, ${council.rejected.length} vetoed ` +
       council.rejected.map((r) => `${r.symbol}(${r.verdicts.find((v) => v.vote === "veto")?.agent})`).join(", "));
@@ -361,13 +376,19 @@ async function cycle(cfg) {
 
   // 8. world + persistence
   let world = null;
-  try { world = await collectWorld(cfg, state); } catch (e) { log(`world collect failed: ${e.message}`); }
+  try { world = await collectWorld(cfg, state); } catch (e) { log(`[ep_${state.episodeId} cycle_${state.cycles}] world collect failed: ${e.message}`); }
   state.updatedAt = t;
+  // [RELIABILITY F01] snapshotId ties state+signals to one cycle so the API/UI
+  // can detect torn cross-file reads instead of mixing numbers from two cycles.
+  state.snapshotId = `${state.episodeId}:cycle_${state.cycles}:${t}`;
   writeJSON(V2.state, state);
   writeJSON(V2.prices, quotes);
   appendJSONL(V2.equity, { ts: t, episodeId: state.episodeId, episodeNum: state.episodeNum, equity: state.equity });
   publishSignals(state, cfg, quotes, world);
-  log(`cycle ${state.cycles} ep${state.episodeNum} equity $${state.equity.toFixed(2)} positions ${Object.keys(state.positions).length} regime ${state.regime}`);
+  // [RELIABILITY F04] heartbeat: so the dashboard can prove the engine is alive
+  // (browser refresh/reconnect just re-reads files; engine never depends on UI).
+  try { writeJSON(V2.heartbeat, { ts: now(), pid: process.pid, cycle: state.cycles, episodeNum: state.episodeNum, episodeId: state.episodeId, snapshotId: state.snapshotId }); } catch { /* non-fatal */ }
+  log(`[ep_${state.episodeId} cycle_${state.cycles}] event=cycle_done equity $${state.equity.toFixed(2)} positions ${Object.keys(state.positions).length} regime ${state.regime}`);
 }
 
 // ---- entry point ----

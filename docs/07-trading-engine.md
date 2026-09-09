@@ -11,15 +11,20 @@
 3. `markAndManage`: update each position's EMA mark with alpha .25; accrue crypto funding at crossed UTC timestamps; evaluate exits in the strict order **liquidation → stop-loss → take-profit → four-hour time-stop → trailing exit**. Each close charges fees/slippage, writes a post journal row with net_pnl and realized_R, and calls onClose.
 4. Recompute equity = wallet + sum(isolated margin + unrealized P&L at mark).
 5. Process previously queued pending orders through sizeOrder, then open/close them. Opens pay taker fee, append pre journal and open fill, deduct margin plus fee from wallet; enforce max ten positions.
-6. Run runStrategies, size each resulting order, and open/close them.
+6. Strategy candidate generation & AI decision filtering:
+   a. `runStrategies` generates candidate order intents.
+   b. `enqueueCandidate` hashes the signal fingerprint and adds candidate to `ai_pending.v2.json`.
+   c. `drainAndProcessAiQueue` dispatches pending candidates asynchronously to embedded Tauric AI (`POST /api/hybrid/decision`).
+   d. `getValidApprovedIntents` gathers fresh approved candidates (TTL <= 300s).
+   e. Surviving intents pass through `agentCouncil` (regime filter, 10-position max, 4-crypto cluster limit, stale quote check).
+   f. Council-approved intents are sized via `sizeOrder` and pushed into `pending.v2.json` for execution on the **subsequent** tick.
 7. recordEquityPeak; check end reason. If ending: close survivors at mark, finalizeEpisode, onEpisodeEnd, nextEpisode. Otherwise rescore strategies if any close occurred. At `brainLoopMinutes=8`, call evolveTick.
-8. collectWorld. Persist state, prices, one equity observation and full signals.
+8. collectWorld. Persist state, prices, one equity observation, heartbeat, and full signals.
 
-`--once` runs one cycle. P11 says the continuous engine loops every 30 seconds. SOURCE DOES NOT SPECIFY fixed-rate versus completion-relative scheduling, retry/backoff, overlap handling or process shutdown semantics.
+`--once` runs one cycle. Continuous mode loops every 30 seconds.
 
-### Required source contradiction
-
-P4/P8 mandate **next-tick fills**, but step 6 executes orders generated from the current tick. These are not equivalent. The recommended interpretation is a queue boundary: cycle t generates intents, t+1 or later fills using a fresh observation acquired after the intent. This changes literal step 6 and requires an explicit decision; see D01 in 19. Exit management also needs a stated distinction between immediate risk liquidation and delayed strategy exits.
+### Next-tick fill resolution
+In the implemented architecture, next-tick fill (D01) is strictly preserved: cycle $t$ generates candidate intents and enqueues approved orders to `pending.v2.json`. Cycle $t+1$ executes those pending orders using a fresh market observation acquired after intent creation. Risk exits (liquidation, stop, target, time, trail) execute immediately in step 3.
 
 ## Price and execution boundaries
 
