@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "configuration": "FINAL_CONTROL",
+  "status": "PRODUCTION — MUST NOT BE MODIFIED",
+  "phase": "phase9-final-system-validation",
+  "note": "Immutable snapshot of final system components prior to out-of-sample evaluation: strategy configuration, eligibility rules, Phase 7 selection filter (RULE_MULTI_AGREEMENT), Phase 8 adaptive management (MGMT_ADAPTIVE_HOLD), execution economics, portfolio concurrency, sizing, and online learner specifications.",
+  "strategyConfiguration": {
+    "donchian": { "lookback": 20, "baseLev": 12, "stopPct": 0.05, "targetPct": 0.08, "rMultiple": 1.6 },
+    "tsmom": { "retN": 20, "minRet": 0.03, "baseLev": 12, "stopPct": 0.05, "targetPct": 0.10, "rMultiple": 2.0 },
+    "mom_trend": { "retN": 20, "rsiMax": 78, "baseLev": 10, "stopPct": 0.05, "targetPct": 0.08, "rMultiple": 1.6 },
+    "rsi2dip": { "smaN": 200, "rsiMax": 10, "baseLev": 10, "stopPct": 0.05, "targetPct": 0.06, "rMultiple": 1.2 },
+    "orb": { "rangeMinutes": 30, "baseLev": 5, "stopPct": 0.016, "targetPct": 0.028, "rMultiple": 1.75 },
+    "ibreakout": { "bars": 48, "mult": 1.0, "baseLev": 15, "stopPct": 0.015, "targetPct": 0.08, "rMultiple": 5.3333333333 }
+  },
+  "strategyEligibility": {
+    "all": ["donchian", "tsmom", "mom_trend", "rsi2dip", "orb", "ibreakout"],
+    "validatedOnly": ["donchian"],
+    "eligibilityCriterion": "Strategy must demonstrate non-negative net R on validation and positive gross opportunity"
+  },
+  "selectionRule": {
+    "id": "RULE_MULTI_AGREEMENT",
+    "description": "Admit trade only when co-firing strategy agreement >= 1 (at least 2 strategies agree on symbol and direction)",
+    "threshold": 1,
+    "feature": "strategy_agreement_count"
+  },
+  "managementPolicy": {
+    "id": "MGMT_ADAPTIVE_HOLD",
+    "description": "Favorable trades (MFE >= +0.5R) held up to 12h; deteriorating trades (MAE <= -0.5R with MFE < +0.2R at 2h) cut early; standard 4h otherwise",
+    "baseHoldHours": 4,
+    "extendedHoldHours": 12,
+    "cutEarlyHours": 2,
+    "stopScale": 1.0,
+    "targetScale": 1.0,
+    "trailing": {
+      "enabled": true,
+      "activateRoi": 0.5,
+      "giveRoi": 0.25
+    },
+    "exitOrder": ["liquidation", "cut-deteriorating", "stop-loss", "take-profit", "time-stop", "trailing-stop"]
+  },
+  "executionAssumptions": {
+    "marginUsd": 100,
+    "markEmaAlpha": 0.25,
+    "fees": {
+      "taker": 0.0005,
+      "maker": 0.0002
+    },
+    "slippage": {
+      "crypto": 0.001,
+      "us": 0.0005,
+      "india": 0.0005
+    }
+  },
+  "portfolioLimits": {
+    "maxConcurrentPositions": 10,
+    "maxPositionPct": 0.30,
+    "maxSameSetupPositions": 2,
+    "maxSetupPerCycle": 2,
+    "minCashPct": 0.02,
+    "clusterLimits": {
+      "crypto": 2,
+      "us": 2,
+      "india": 2
+    }
+  },
+  "leverage": {
+    "maxLeverageByMarket": {
+      "crypto": 40,
+      "us": 4,
+      "india": 5
+    },
+    "effectiveByStrategy": {
+      "tsmom": 12,
+      "donchian": 12,
+      "rsi2dip": 10,
+      "mom_trend": 10,
+      "orb": 5,
+      "ibreakout": 15
+    }
+  },
+  "sizingRules": {
+    "model": "sizing.mjs",
+    "dailyVolLookback": 15,
+    "volTargetAnnual": 0.60,
+    "kellyFractionStart": 0.45,
+    "walletClamp": 0.98,
+    "qualitySizing": {
+      "soloMarginUsd": 75,
+      "confirmedMarginUsd": 125
+    }
+  },
+  "learnerConfiguration": {
+    "priorTrades": 10,
+    "priorMeanR": 0,
+    "priorWinRate": 0.5,
+    "priorSE": 0.3,
+    "exploreC": 0.15,
+    "blockMinN": 8,
+    "blockEdge": -0.05,
+    "noTradeUcb": 0.0,
+    "noTradeQuality": 0.7,
+    "decay": 1.0
+  },
+  "survivalGate": {
+    "enabled": true,
+    "underwaterBlocked": true,
+    "aboveWaterLeverageCap": 5.0
+  },
+  "productionControls": {
+    "ddCaution": 0.12,
+    "ddHalt": 0.20,
+    "hardFloorPct": 0.70
+  }
+}

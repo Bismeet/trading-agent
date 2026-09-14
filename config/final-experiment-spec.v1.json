@@ -1,0 +1,122 @@
+{
+  "version": "1.0.0",
+  "phase": "phase9-final-system-validation",
+  "status": "PRE-REGISTERED — IMMUTABLE",
+  "note": "Pre-registered protocol for Phase 9: Final End-to-End Autonomous Trader Validation. Evaluates the complete deterministic trading system out-of-sample under realistic execution friction, adaptive management, portfolio constraints, and online learning.",
+  "panels": {
+    "daily": {
+      "interval": "1d",
+      "range": "5y",
+      "strategies": ["tsmom", "donchian", "rsi2dip", "mom_trend"]
+    },
+    "quarter": {
+      "interval": "15m",
+      "range": "90d",
+      "strategies": ["orb", "ibreakout"]
+    }
+  },
+  "splits": {
+    "daily": { "train": 0.60, "validation": 0.20, "test": 0.20 },
+    "quarter": { "train": 0.60, "validation": 0.20, "test": 0.20 }
+  },
+  "strategies": ["donchian", "tsmom", "mom_trend", "rsi2dip", "orb", "ibreakout"],
+  "strategyUniverses": {
+    "ALL_ELIGIBLE": {
+      "id": "ALL_ELIGIBLE",
+      "description": "All 6 production seed strategies evaluated together",
+      "strategies": ["donchian", "tsmom", "mom_trend", "rsi2dip", "orb", "ibreakout"]
+    },
+    "VALIDATED_ONLY": {
+      "id": "VALIDATED_ONLY",
+      "description": "Only strategies passing out-of-sample economic validation in Phase 8",
+      "strategies": ["donchian"]
+    }
+  },
+  "systemCandidates": [
+    {
+      "id": "SYSTEM_CONTROL",
+      "name": "Control Baseline (A)",
+      "description": "All generated candidate signals, 4h fixed max hold, standard stops/targets, control portfolio limits",
+      "entryPolicy": "ENTRY_ALL",
+      "managementPolicy": "MGMT_CONTROL",
+      "portfolioLimits": true,
+      "learner": false
+    },
+    {
+      "id": "SYSTEM_PHASE7_ENTRY",
+      "name": "Phase 7 Entry (B)",
+      "description": "Phase 7 RULE_MULTI_AGREEMENT entry filter, 4h fixed max hold, standard stops/targets, control portfolio limits",
+      "entryPolicy": "ENTRY_PHASE7_FILTER",
+      "managementPolicy": "MGMT_CONTROL",
+      "portfolioLimits": true,
+      "learner": false
+    },
+    {
+      "id": "SYSTEM_PHASE7_8_ADAPTIVE",
+      "name": "Phase 7 + Phase 8 Adaptive (C)",
+      "description": "Phase 7 entry filter + Phase 8 MGMT_ADAPTIVE_HOLD (extend favorable setups to 12h, cut deteriorating at 2h), unrestricted portfolio",
+      "entryPolicy": "ENTRY_PHASE7_FILTER",
+      "managementPolicy": "MGMT_ADAPTIVE_HOLD",
+      "portfolioLimits": false,
+      "learner": false
+    },
+    {
+      "id": "SYSTEM_FINAL_PORTFOLIO",
+      "name": "Final System + Portfolio (D)",
+      "description": "Phase 7 entry filter + Phase 8 adaptive management + pre-registered portfolio concurrency and correlation limits",
+      "entryPolicy": "ENTRY_PHASE7_FILTER",
+      "managementPolicy": "MGMT_ADAPTIVE_HOLD",
+      "portfolioLimits": true,
+      "learner": false
+    },
+    {
+      "id": "SYSTEM_FINAL_LEARNER",
+      "name": "Final System + Causal Learner (E)",
+      "description": "Final System with online causal contextual learner (strictly past resolved trades update cell priors; abstention threshold enforced)",
+      "entryPolicy": "ENTRY_PHASE7_FILTER",
+      "managementPolicy": "MGMT_ADAPTIVE_HOLD",
+      "portfolioLimits": true,
+      "learner": true
+    }
+  ],
+  "markets": {
+    "crypto": {
+      "symbols": ["BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD", "DOGE-USD"],
+      "takerFee": 0.0005,
+      "makerFee": 0.0002,
+      "slippage": 0.0010,
+      "maxLeverage": 40
+    },
+    "us": {
+      "symbols": ["AAPL", "NVDA", "MSFT", "TSLA", "AMZN"],
+      "takerFee": 0.0005,
+      "makerFee": 0.0002,
+      "slippage": 0.0005,
+      "maxLeverage": 4
+    },
+    "india": {
+      "symbols": ["RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS"],
+      "takerFee": 0.0005,
+      "makerFee": 0.0002,
+      "slippage": 0.0005,
+      "maxLeverage": 5
+    }
+  },
+  "costStressScenarios": [
+    { "id": "COST_100", "multiplier": 1.00, "label": "Baseline Realistic Costs" },
+    { "id": "COST_125", "multiplier": 1.25, "label": "Friction Stress (+25% fee/slippage)" },
+    { "id": "COST_150", "multiplier": 1.50, "label": "Severe Adverse Friction (+50% fee/slippage)" }
+  ],
+  "passFailCriteria": [
+    { "id": "CRIT_01_TEST_MEAN_R", "name": "TEST mean net R > 0", "metric": "testMeanNetR", "op": ">", "threshold": 0.0 },
+    { "id": "CRIT_02_TEST_NET_PNL", "name": "TEST cumulative net PnL > 0", "metric": "testNetPnlUsd", "op": ">", "threshold": 0.0 },
+    { "id": "CRIT_03_VAL_POSITIVE", "name": "Validation was positive", "metric": "valMeanNetR", "op": ">", "threshold": 0.0 },
+    { "id": "CRIT_04_NO_CATASTROPHIC_DD", "name": "No catastrophic drawdown", "metric": "testMaxDDRatio", "op": "<=", "threshold": 50.0 },
+    { "id": "CRIT_05_SAMPLE_SIZE", "name": "Adequate sample size", "metric": "testResolvedCount", "op": ">=", "threshold": 200 },
+    { "id": "CRIT_06_NO_PROFIT_DOMINANCE", "name": "No single trade dominates profits", "metric": "top1PctProfitShare", "op": "<=", "threshold": 0.50 },
+    { "id": "CRIT_07_SUB_PERIOD_CONSISTENCY", "name": "Not confined to one accidental sub-period", "metric": "positiveSubFoldsRatio", "op": ">=", "threshold": 0.75 },
+    { "id": "CRIT_08_COST_SURVIVABLE", "name": "Transaction costs economically survivable", "metric": "costStress125NetR", "op": ">", "threshold": 0.0 },
+    { "id": "CRIT_09_STRATEGY_ROBUSTNESS", "name": "Strategy contribution not single fragile outlier", "metric": "validatedStrategiesPositive", "op": "==", "threshold": true },
+    { "id": "CRIT_10_ROBUSTNESS_CHECKS", "name": "Robustness checks preserve edge", "metric": "robustnessPassed", "op": "==", "threshold": true }
+  ]
+}

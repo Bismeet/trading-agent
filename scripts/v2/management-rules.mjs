@@ -8,7 +8,7 @@
 import { sideSign, fillPrice, slippageFraction, tradeFee, emaUpdate, isLiquidated, markPosition } from "./perp.mjs";
 import { classifyTradeState, calcMfeCaptureRatio } from "./management-features.mjs";
 
-export function simulateManagedTrade({ cand, rows, cfg, prod, spec, policyId = "MGMT_CONTROL", portfolioSizing = false }) {
+export function simulateManagedTrade({ cand, rows, cfg, prod, spec, policyId = "MGMT_CONTROL", portfolioSizing = false, costMultiplier = 1.0 }) {
   const market = cand.market || "crypto";
   const baseMargin = 100;
   let margin = baseMargin;
@@ -23,9 +23,9 @@ export function simulateManagedTrade({ cand, rows, cfg, prod, spec, policyId = "
 
   const leverage = cand.baseLev || 10;
   const tiers = cfg.v2.maintenanceTiers?.[market];
-  const halfSpread = (cfg.slippage[market] ?? 0.0005) / 2;
+  const halfSpread = ((cfg.slippage[market] ?? 0.0005) / 2) * costMultiplier;
   const notional = margin * leverage;
-  const entrySlip = slippageFraction(notional, cfg.slippage[market] ?? 0.02);
+  const entrySlip = slippageFraction(notional, cfg.slippage[market] ?? 0.02) * costMultiplier;
   const entryRef = cand.price;
   const entry = fillPrice(entryRef, cand.side, halfSpread, entrySlip);
 
@@ -47,7 +47,7 @@ export function simulateManagedTrade({ cand, rows, cfg, prod, spec, policyId = "
     ? entry * (1 - (1 / leverage) + mmr)
     : entry * (1 + (1 / leverage) - mmr);
 
-  const takerFeeRate = cfg.v2.perpFees.taker;
+  const takerFeeRate = (cfg.v2?.perpFees?.taker ?? 0.0005) * costMultiplier;
   const entryFee = tradeFee(pos.qty * entry, takerFeeRate);
   let totalFees = entryFee;
   let totalSpreadSlip = Math.abs(entry - entryRef) * pos.qty;
@@ -246,7 +246,7 @@ export function simulateManagedTrade({ cand, rows, cfg, prod, spec, policyId = "
   // Calculate final exit execution costs and PnL
   const exitNotional = activeQty * exitRef;
   const exitFee = tradeFee(exitNotional, takerFeeRate);
-  const exitSlipFrac = slippageFraction(exitNotional, cfg.slippage[market] ?? 0.02);
+  const exitSlipFrac = slippageFraction(exitNotional, cfg.slippage[market] ?? 0.02) * costMultiplier;
   const exitActual = fillPrice(exitRef, cand.side === "long" ? "short" : "long", halfSpread, exitSlipFrac);
   const exitSpreadSlip = Math.abs(exitActual - exitRef) * activeQty;
 
