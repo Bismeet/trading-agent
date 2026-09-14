@@ -1,0 +1,52 @@
+{
+  "version": "1.0.0",
+  "frozenAt": "2026-09-14T07:20:29.755Z",
+  "specHash": "f57149cca9c8c99c",
+  "chosenRule": "RULE_MULTI_AGREEMENT",
+  "changed": true,
+  "reason": "All pre-registered validation gates satisfied",
+  "validationGate": {
+    "passed": true,
+    "chosen": "RULE_MULTI_AGREEMENT",
+    "reason": "All pre-registered validation gates satisfied",
+    "checks": [
+      {
+        "name": "minTrainResolved",
+        "required": ">= 500",
+        "actual": 6914,
+        "passed": true
+      },
+      {
+        "name": "minValidationResolved",
+        "required": ">= 150",
+        "actual": 2500,
+        "passed": true
+      },
+      {
+        "name": "availabilityFloor",
+        "required": ">= 15%",
+        "actual": "49.5%",
+        "passed": true
+      },
+      {
+        "name": "economicImprovement",
+        "required": ">= +0.0050 R",
+        "actual": "+0.0662 R",
+        "passed": true
+      },
+      {
+        "name": "drawdownRatio",
+        "required": "<= 120%",
+        "actual": "13.2%",
+        "passed": true
+      },
+      {
+        "name": "subFoldStability",
+        "required": ">= 2 of 4 folds improve",
+        "actual": "4 of 4",
+        "passed": true
+      }
+    ]
+  },
+  "note": "Written strictly after the validation gate; the live engine operates on selection.control.json and never reads this file."
+}

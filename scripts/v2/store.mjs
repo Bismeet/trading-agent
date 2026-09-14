@@ -4,6 +4,12 @@ import path from "node:path";
 import { DATA } from "../lib.mjs";
 
 export const V2 = {
+  contextLearning: path.join(DATA, "context-learning.v2.json"),
+  heartbeat: path.join(DATA, "heartbeat.v2.json"),           // engine liveness (Phase 4 §1/§3)
+  learnDecisions: path.join(DATA, "learn-decisions.v2.jsonl"),
+  candidates: path.join(DATA, "candidates.v2.jsonl"),        // Phase 3: per-cycle attribution audit
+  shadowOpen: path.join(DATA, "shadow-open.v2.json"),        // Phase 3: unresolved shadow positions
+  shadowTrades: path.join(DATA, "shadow-trades.v2.jsonl"),   // Phase 3: resolved shadow outcomes (NEVER real P&L)
   state: path.join(DATA, "state.v2.json"),
   signals: process.env.FAB_SIGNALS || path.join(DATA, "signals.v2.json"),
   episodes: path.join(DATA, "episodes.jsonl"),

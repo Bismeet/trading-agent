@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "configuration": "CONTROL",
+  "status": "PRODUCTION — MUST NOT BE MODIFIED",
+  "phase": "phase7-signal-edge-selection",
+  "note": "Frozen snapshot of the production strategy, risk geometry, execution, learner, and trade selection baseline. In production, all candidate signals passing strategy criteria are admitted (take-all baseline). This file is immutable and serves as the benchmark against which Phase 7 selective trade admission is measured.",
+  "selectionPolicy": {
+    "id": "RULE_TAKE_ALL",
+    "description": "All generated candidate signals admitted to execution without conditional filtering",
+    "filtering": false,
+    "eligibility": "unconditional"
+  },
+  "strategyIds": ["tsmom", "donchian", "rsi2dip", "mom_trend", "orb", "ibreakout"],
+  "marketScope": {
+    "tsmom": ["crypto", "us", "india"],
+    "donchian": ["crypto", "us", "india"],
+    "rsi2dip": ["crypto", "us", "india"],
+    "mom_trend": ["crypto", "us", "india"],
+    "orb": ["us"],
+    "ibreakout": ["crypto"]
+  },
+  "strategyParams": {
+    "tsmom": { "retN": 28, "smaN": 200, "momThreshold": 0.03, "baseLev": 12, "stopPct": 0.05, "targetPct": 0.1, "confLong": 0.62, "confShort": 0.55 },
+    "donchian": { "lookback": 20, "smaN": 200, "baseLev": 12, "stopPct": 0.05, "targetPct": 0.08, "confLong": 0.6, "confShort": 0.55 },
+    "rsi2dip": { "rsiN": 2, "rsiLow": 10, "rsiHigh": 90, "smaN": 200, "baseLev": 10, "stopPct": 0.05, "targetPct": 0.06, "confLong": 0.6, "confShort": 0.55 },
+    "mom_trend": { "retN": 28, "smaN": 200, "retThreshold": 0.05, "momMin": 1, "rsiMax": 78, "baseLev": 10, "stopPct": 0.05, "targetPct": 0.08, "confLong": 0.55 },
+    "orb": { "rangeMinutes": 30, "eligibilityMinutes": 5, "baseLev": 5, "stopPct": 0.016, "targetPct": 0.028, "confLong": 0.55, "confShort": 0.5 },
+    "ibreakout": { "bars": 48, "baseLev": 15, "stopPct": 0.015, "targetPct": 0.08, "conf": 0.5 }
+  },
+  "riskGeometry": {
+    "maxHoldHours": 4,
+    "trailing": { "enabled": true, "activateRoi": 0.5, "giveRoi": 0.25 },
+    "exitOrder": ["liquidation", "stop-loss", "take-profit", "time-stop", "trailing-stop"],
+    "perStrategyGeometry": {
+      "tsmom": { "baseLev": 12, "stopPct": 0.05, "targetPct": 0.1, "rMultiple": 2 },
+      "donchian": { "baseLev": 12, "stopPct": 0.05, "targetPct": 0.08, "rMultiple": 1.6 },
+      "rsi2dip": { "baseLev": 10, "stopPct": 0.05, "targetPct": 0.06, "rMultiple": 1.2 },
+      "mom_trend": { "baseLev": 10, "stopPct": 0.05, "targetPct": 0.08, "rMultiple": 1.6 },
+      "orb": { "baseLev": 5, "stopPct": 0.016, "targetPct": 0.028, "rMultiple": 1.75 },
+      "ibreakout": { "baseLev": 15, "stopPct": 0.015, "targetPct": 0.08, "rMultiple": 5.3333333333 }
+    }
+  },
+  "executionAssumptions": {
+    "marginUsd": 100,
+    "markEmaAlpha": 0.25,
+    "fees": { "taker": 0.0005, "maker": 0.0002 },
+    "slippage": { "crypto": 0.001, "us": 0.0005, "india": 0.0005 }
+  },
+  "learnerConfig": {
+    "priorTrades": 10,
+    "priorMeanR": 0,
+    "priorWinRate": 0.5,
+    "priorSE": 0.3,
+    "exploreC": 0.15,
+    "blockMinN": 8,
+    "blockEdge": -0.05,
+    "noTradeUcb": 0.0,
+    "noTradeQuality": 0.7,
+    "maxSetupPerCycle": 2,
+    "maxSameSetupPositions": 2,
+    "qualityGain": 1.5,
+    "qualityLo": 0.25,
+    "qualityHi": 1.6,
+    "sizeGain": 1.2,
+    "sizeLo": 0.5,
+    "sizeHi": 1.5,
+    "decay": 1.0
+  }
+}

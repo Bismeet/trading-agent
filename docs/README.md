@@ -61,6 +61,8 @@ Foundation → file/data contracts → pure math → episodes → strategies →
 | [18-implementation-checklist](18-implementation-checklist.md) | Execution tracker; application work remains unchecked |
 | [19-recommended-architecture](19-recommended-architecture.md) | Separate proposed architecture and decision register |
 | [20-source-traceability](20-source-traceability.md) | Coverage matrix and quality-check evidence |
+| [21-contextual-learning](21-contextual-learning.md) | Phase 2: regime|side|strategy contextual online learner |
+| [22-shadow-and-candidate-audit](22-shadow-and-candidate-audit.md) | Phase 3: candidate attribution audit and shadow-trade counterfactuals |
 
 Files 00–15 reconstruct source requirements, with local gaps and recommendations explicitly labeled. Files 03, 16 and 18 also contain proposed acceptance/testing requirements. File 17 is the audit; file 19 is recommendations only; file 20 records verification limits. Nothing in the audit silently overrides the source architecture.
 

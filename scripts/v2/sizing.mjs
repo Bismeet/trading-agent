@@ -17,6 +17,8 @@ export function dailyVol(closes) {
 export function sizeOrder(state, o, eq, cfg, histCache) {
   if (!o || o.op !== "open") return o;
   const V = cfg.v2;
+  const L = V.learning || {};
+  const sizeLo = L.sizeLo ?? 0.5, sizeHi = L.sizeHi ?? 1.5, sizeGain = L.sizeGain ?? 1.2;
   const market = cfg.watchlist.find((w) => w.symbol === o.symbol)?.market || "crypto";
   const marketMax = V.leverage[market]?.maxLeverage || 1;
 
@@ -42,6 +44,11 @@ export function sizeOrder(state, o, eq, cfg, histCache) {
     }
     // 5. margin from equity
     margin = base * state.equity;
+    // 5b. LEARNER size multiplier (bounded, evidence-gated): strong positive
+    // contextual expectancy -> up to 1.5x; negative -> down to 0.5x; unknown -> ~1x.
+    // NEVER exceeds hard leverage/wallet caps below.
+    if (Number.isFinite(o.sizeMult)) margin *= clamp(o.sizeMult, sizeLo, sizeHi);
+    else if (Number.isFinite(o.quality)) margin *= clamp(1 + sizeGain * (o.quality - 1) / 1.5, sizeLo, sizeHi);
     // 6. volatility multiplier
     const targetDaily = (V.aggression.volTargetAnnual ?? 0.8) / Math.sqrt(365);
     const observed = dailyVol(histCache?.quotes?.[o.symbol]?.closes);

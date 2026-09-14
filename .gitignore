@@ -4,3 +4,7 @@ data/*.log
 
 # runtime data (simulated account state, journals, caches) — local only
 data/
+
+# phase 3 sandboxes / test data
+tmp-test-data/
+tmp-live-probe/

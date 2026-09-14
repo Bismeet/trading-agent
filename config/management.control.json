@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "configuration": "CONTROL",
+  "status": "PRODUCTION — MUST NOT BE MODIFIED",
+  "phase": "phase8-portfolio-trade-management",
+  "note": "Frozen snapshot of production trade management, execution economics, portfolio exposure, correlation limits, and sizing baseline. In production, trades are managed with a 4-hour max hold, standard stops/targets, trailing stop (0.50 activate / 0.25 giveback), Kelly-volatility sizing, and max 10 concurrent positions. This baseline snapshot is immutable and serves as the benchmark against which Phase 8 adaptive management is measured.",
+  "managementPolicy": {
+    "id": "MGMT_CONTROL",
+    "description": "Production CONTROL trade management: 4-hour max hold, standard stops and targets, standard trailing stop, no partial exits, no adaptive extension",
+    "maxHoldHours": 4,
+    "stopScale": 1.0,
+    "targetScale": 1.0,
+    "trailing": {
+      "enabled": true,
+      "activateRoi": 0.5,
+      "giveRoi": 0.25
+    },
+    "exitOrder": ["liquidation", "stop-loss", "take-profit", "time-stop", "trailing-stop"],
+    "partialExits": false,
+    "adaptiveHolding": false,
+    "breakevenStop": false
+  },
+  "portfolioLimits": {
+    "maxConcurrentPositions": 10,
+    "maxPositionPct": 0.30,
+    "maxSameSetupPositions": 2,
+    "maxSetupPerCycle": 2,
+    "minCashPct": 0.02
+  },
+  "executionAssumptions": {
+    "marginUsd": 100,
+    "markEmaAlpha": 0.25,
+    "fees": { "taker": 0.0005, "maker": 0.0002 },
+    "slippage": { "crypto": 0.001, "us": 0.0005, "india": 0.0005 }
+  },
+  "leverage": {
+    "maxLeverageByMarket": { "crypto": 40, "us": 4, "india": 5 },
+    "effectiveByStrategy": {
+      "tsmom": 12,
+      "donchian": 12,
+      "rsi2dip": 10,
+      "mom_trend": 10,
+      "orb": 5,
+      "ibreakout": 15
+    }
+  },
+  "perStrategyGeometry": {
+    "tsmom": { "baseLev": 12, "stopPct": 0.05, "targetPct": 0.1, "rMultiple": 2 },
+    "donchian": { "baseLev": 12, "stopPct": 0.05, "targetPct": 0.08, "rMultiple": 1.6 },
+    "rsi2dip": { "baseLev": 10, "stopPct": 0.05, "targetPct": 0.06, "rMultiple": 1.2 },
+    "mom_trend": { "baseLev": 10, "stopPct": 0.05, "targetPct": 0.08, "rMultiple": 1.6 },
+    "orb": { "baseLev": 5, "stopPct": 0.016, "targetPct": 0.028, "rMultiple": 1.75 },
+    "ibreakout": { "baseLev": 15, "stopPct": 0.015, "targetPct": 0.08, "rMultiple": 5.3333333333 }
+  },
+  "sizingRules": {
+    "model": "sizing.mjs",
+    "dailyVolLookback": 15,
+    "volTargetAnnual": 0.60,
+    "kellyFractionStart": 0.45,
+    "walletClamp": 0.98
+  },
+  "survivalGate": {
+    "underwaterBlock": true,
+    "aboveWaterCap": "5x",
+    "model": "controls.mjs"
+  },
+  "learnerConfig": {
+    "priorTrades": 10,
+    "priorMeanR": 0,
+    "priorWinRate": 0.5,
+    "priorSE": 0.3,
+    "exploreC": 0.15,
+    "decay": 1.0
+  }
+}

@@ -1,0 +1,162 @@
+{
+  "version": 1,
+  "name": "phase6-risk-geometry",
+  "status": "PRE-REGISTERED",
+  "note": "This file IS the experiment specification. It was written BEFORE any Phase 6 measurement and is READ by scripts/v2/geometry*.mjs: no axis, range, weight, gate or horizon is hardcoded in JS. Phase 6 searches ONLY execution geometry (hold time, stop distance, target distance, trailing). Strategy thresholds, sides, market scope, leverage and exit ORDER are frozen.",
+  "hardRules": [
+    "no randomness: explicit finite configuration list, deterministic ordering, identical input -> identical output",
+    "no look-ahead: a trade is resolved ONLY on bars strictly after its decision bar; parameter selection uses TRAIN only",
+    "CONTROL geometry is always inside the tested set and is never rewritten",
+    "leverage is NOT an axis (risk parameter, fixed at CONTROL)",
+    "strategy thresholds are NOT an axis (Phase 5 owns them; CONTROL signals are re-used unchanged)",
+    "every tested configuration is persisted, including failures (no silent discards)",
+    "the TEST fold is evaluated once, after the geometry is frozen",
+    "missing evidence is reported as INSUFFICIENT, never as zero",
+    "the live engine, the survival gate and the learner are untouched; geometry outputs live under data/calibration and config/risk.experimental.json"
+  ],
+  "frozenAxes": {
+    "leverage": "CONTROL (config.json v2.leverage maxLeverage + strategies.mjs baseLev, market-capped by candidateLeverage)",
+    "strategyParams": "CONTROL (config/strategies.control.json — Phase 5 CONTROL, byte-compared by tests)",
+    "exitOrder": "liquidation -> stop-loss -> take-profit -> time-stop -> trailing-stop (engine.mjs managePositions)",
+    "costModel": "perp.mjs: taker fee on both legs, half-spread + sqrt market impact adversely on both fills",
+    "marginModel": "isolated, marginUsd fixed, no wallet/concurrency/council gates (counterfactual dataset)",
+    "funding": "OMITTED (no historical funding rate offline) — bias documented, never filled in with a guess"
+  },
+  "panels": {
+    "daily": {
+      "interval": "1d",
+      "range": "5y",
+      "role": "daily bar context for the four daily-signal strategies (tsmom, donchian, rsi2dip, mom_trend)"
+    },
+    "hour": {
+      "interval": "60m",
+      "range": "730d",
+      "role": "PRIMARY geometry panel for the four daily-signal strategies",
+      "strategies": ["tsmom", "donchian", "rsi2dip", "mom_trend"]
+    },
+    "quarter": {
+      "interval": "15m",
+      "range": "60d",
+      "role": "intraday strategies keep the Phase 5 panel because their session/range semantics need sub-hour bars (orb: 30-minute opening range; ibreakout: 48x15m breakout)",
+      "strategies": ["orb", "ibreakout"]
+    }
+  },
+  "splits": {
+    "daily": { "train": 0.6, "validation": 0.2, "test": 0.2 },
+    "hour": { "train": 0.6, "validation": 0.2, "test": 0.2 },
+    "quarter": { "train": 0.6, "validation": 0.2, "test": 0.2 }
+  },
+  "axes": {
+    "holdHours": {
+      "control": 4,
+      "values": [1, 2, 4, 8, 12, 24],
+      "unit": "hours",
+      "rationale": "does the edge emerge after the current 4h horizon, or is 4h already too long?"
+    },
+    "stopScale": {
+      "control": 1,
+      "values": [0.5, 1, 2],
+      "unit": "multiple of the strategy's OWN CONTROL stopPct",
+      "rationale": "pure stop-distance effect. Scaling (not replacing) preserves each strategy's own risk unit.",
+      "bounds": { "minPct": 0.005, "maxPct": 0.35, "note": "a scaled stop outside these bounds is invalid and the config is rejected" }
+    },
+    "targetScale": {
+      "control": 1,
+      "values": [0.5, 1, 2],
+      "unit": "multiple of the strategy's OWN CONTROL targetPct",
+      "rationale": "pure target-distance effect (R:R shape)",
+      "bounds": { "minPct": 0.0025, "maxPct": 0.6 }
+    },
+    "trailing": {
+      "control": { "enabled": true, "activateRoi": 0.5, "giveRoi": 0.25 },
+      "values": [
+        { "id": "ctrl", "enabled": true, "activateRoi": 0.5, "giveRoi": 0.25 },
+        { "id": "off", "enabled": false },
+        { "id": "tight", "enabled": true, "activateRoi": 0.25, "giveRoi": 0.1 }
+      ],
+      "note": "trailing is only meaningful at longer holds: the trailing axis is applied ONLY on the 24h hold (pre-registered), where the CONTROL trailing could ever activate."
+    }
+  },
+  "configurations": [
+    { "id": "CONTROL", "category": "CONTROL", "holdHours": 4, "stopScale": 1, "targetScale": 1, "trailing": "ctrl", "rationale": "production geometry (must remain an option; never modified)" },
+    { "id": "HOLD_1H", "category": "ISOLATED_HOLD", "holdHours": 1, "stopScale": 1, "targetScale": 1, "trailing": "ctrl", "rationale": "hold-time only" },
+    { "id": "HOLD_2H", "category": "ISOLATED_HOLD", "holdHours": 2, "stopScale": 1, "targetScale": 1, "trailing": "ctrl", "rationale": "hold-time only" },
+    { "id": "HOLD_8H", "category": "ISOLATED_HOLD", "holdHours": 8, "stopScale": 1, "targetScale": 1, "trailing": "ctrl", "rationale": "hold-time only" },
+    { "id": "HOLD_12H", "category": "ISOLATED_HOLD", "holdHours": 12, "stopScale": 1, "targetScale": 1, "trailing": "ctrl", "rationale": "hold-time only" },
+    { "id": "HOLD_24H", "category": "ISOLATED_HOLD", "holdHours": 24, "stopScale": 1, "targetScale": 1, "trailing": "ctrl", "rationale": "hold-time only" },
+    { "id": "STOP_TIGHT", "category": "ISOLATED_STOP", "holdHours": 4, "stopScale": 0.5, "targetScale": 1, "trailing": "ctrl", "rationale": "stop-distance only (tighter)" },
+    { "id": "STOP_WIDE", "category": "ISOLATED_STOP", "holdHours": 4, "stopScale": 2, "targetScale": 1, "trailing": "ctrl", "rationale": "stop-distance only (wider)" },
+    { "id": "TARGET_NEAR", "category": "ISOLATED_TARGET", "holdHours": 4, "stopScale": 1, "targetScale": 0.5, "trailing": "ctrl", "rationale": "target-distance only (nearer)" },
+    { "id": "TARGET_FAR", "category": "ISOLATED_TARGET", "holdHours": 4, "stopScale": 1, "targetScale": 2, "trailing": "ctrl", "rationale": "target-distance only (farther)" },
+    { "id": "COMBINED_24H_WIDE_TARGET", "category": "COMBINED", "holdHours": 24, "stopScale": 1, "targetScale": 2, "trailing": "ctrl", "rationale": "long hold + far target" },
+    { "id": "COMBINED_24H_TIGHT_STOP", "category": "COMBINED", "holdHours": 24, "stopScale": 0.5, "targetScale": 1, "trailing": "ctrl", "rationale": "long hold + tight stop" },
+    { "id": "COMBINED_24H_BALANCED", "category": "COMBINED", "holdHours": 24, "stopScale": 0.5, "targetScale": 2, "trailing": "ctrl", "rationale": "long hold + tight stop + far target" },
+    { "id": "COMBINED_8H_FAR_TARGET", "category": "COMBINED", "holdHours": 8, "stopScale": 1, "targetScale": 2, "trailing": "ctrl", "rationale": "medium hold + far target" },
+    { "id": "TRAIL_OFF_24H", "category": "ISOLATED_TRAILING", "holdHours": 24, "stopScale": 1, "targetScale": 1, "trailing": "off", "rationale": "trailing only: is the CONTROL trail cutting the long-hold move short?" },
+    { "id": "TRAIL_TIGHT_24H", "category": "ISOLATED_TRAILING", "holdHours": 24, "stopScale": 1, "targetScale": 1, "trailing": "tight", "rationale": "trailing only: tighter activation/giveback" }
+  ],
+  "resolutionModel": {
+    "note": "Offline counterfactual resolution reusing perp.mjs (identical cost model to Phase 5) with the pre-registered geometry plugged in. Documented differences from the live engine/shadow layer: (1) bars, not 30s quotes; (2) CONSERVATIVE intra-bar ordering — liquidation, then stop before target when both levels are touched in the same bar; (3) the stop fills at min/max(stopLevel, barOpen), never better than the stop; (4) time/trailing fill at the EMA mark; (5) NO funding accrual; (6) the entry is the decision bar close plus an adverse fill.",
+    "marginUsd": 100,
+    "entryTiming": "decision bar close, adverse fill",
+    "stopFill": "at the stop level, never worse (gap-aware)",
+    "targetFill": "at the target level, never better",
+    "timeTrailFill": "at the EMA mark (alpha = risk.control.json markEmaAlpha)",
+    "maeMfe": "from intra-bar extremes against isolated margin; reported both inside the actual hold and over the fixed diagnostic horizon"
+  },
+  "costSeparation": {
+    "note": "Phase 6 splits reward into three layers so 'the strategy has no directional edge' and 'the edge exists but costs eat it' can never be confused.",
+    "raw_ret_pct": "pure price return from the decision bar close to the exit reference price (no fills, no fees) x side sign",
+    "gross_pnl_usd": "fill-to-fill P&L (adverse entry fill and adverse exit fill included => spread and slippage are embedded here), fees excluded",
+    "fees_usd": "taker fee on entry notional + taker fee on exit notional",
+    "spread_slip_usd": "gross_pnl_usd minus the P&L computed at the un-adjusted reference prices (what the two adverse fills cost)",
+    "net_pnl_usd": "gross_pnl_usd - fees_usd (funding omitted)",
+    "R_own": "net_pnl / (qty * entry * this geometry's stopPct) — standard own-risk R",
+    "R_ctrl": "net_pnl / (qty * entry * the strategy's CONTROL stopPct) — CROSS-GEOMETRY comparable risk unit and the primary comparison unit, because net_pnl and margin are identical across geometries",
+    "break_even_move_pct": "(fees_usd + spread_slip_usd) / entry notional — the favourable price move needed to pay for one round trip"
+  },
+  "diagnostics": {
+    "timeToEventHours": [1, 2, 4, 8, 12, 24],
+    "excursionHours": [1, 2, 4, 8, 12, 24],
+    "diagnosticHorizonHours": 24,
+    "censoring": "if the panel ends before a horizon, the value is null and the count is reported as censored — never filled, never zero",
+    "unconditionalExcursion": "excursions and time-to-event are measured over the diagnostic horizon REGARDLESS of the trade's own geometry (diagnostic measurement only; the trade itself is unchanged)"
+  },
+  "objective": {
+    "note": "Geometry-ecosystem quality, NOT maximum historical return. Turnover is never rewarded (availability is capped at 1 = parity with CONTROL) and thin samples are neutral.",
+    "weights": { "edge": 0.45, "stability": 0.2, "availability": 0.2, "costEfficiency": 0.15 },
+    "qualityWindowR": 0.25,
+    "qualityNeutral": 0.5,
+    "costCapUsd": 2,
+    "maxDrawdownR": 25,
+    "drawdownPenaltyWeight": 0.1,
+    "stabilityFolds": 4,
+    "tieBreak": "highest score wins; equal scores are broken by lexicographic configuration id (deterministic)"
+  },
+  "validationGate": {
+    "note": "A geometry replaces CONTROL only if it is NOT materially worse on the VALIDATION fold and does not collapse availability. Failures are recorded with the reason; the TRAIN-best geometry is NOT used when it fails.",
+    "minTrainResolved": 400,
+    "minValidationResolved": 120,
+    "minValidationResolvedPerStrategy": 20,
+    "minAvailabilityRatioVsControl": 0.8,
+    "qualityToleranceR": 0.05,
+    "maxDrawdownMultipleVsControl": 2,
+    "drawdownFloorR": 1,
+    "minStableFolds": 2,
+    "requireScoreNotWorse": true
+  },
+  "sufficiency": {
+    "minResolvedForStrategyClaim": 30,
+    "minResolvedForInference": 100,
+    "insufficientLabel": "INSUFFICIENT",
+    "policy": "a metric below these sample sizes is reported as INSUFFICIENT and is never converted to 0, never silently dropped and never used to declare an edge"
+  },
+  "profitabilityGuard": "A positive TEST mean net R would NOT establish profitability. Phase 6 reports four separate claims: RAW EDGE (price return), NET EDGE (after costs), ROBUST OUT-OF-SAMPLE EDGE (TEST fold) and PROFITABILITY (which requires a separate standard: capital, sizing, concurrency, episodes, drawdown, funding and live execution).",
+  "frozenBySemantics": [
+    "a strategy's KIND never changes: trend stays trend, breakout stays breakout, mean reversion stays mean reversion",
+    "side rules never change (mom_trend stays long-only; no synthetic shorts)",
+    "signal thresholds and market scope never change",
+    "leverage never changes",
+    "only holdHours / stopScale / targetScale / trailing are searched, and stop/target are applied as multiples of each strategy's OWN CONTROL values so the risk unit stays meaningful"
+  ]
+}

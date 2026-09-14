@@ -1,0 +1,144 @@
+{
+  "version": 1,
+  "name": "phase5-strategy-calibration",
+  "status": "PRE-REGISTERED",
+  "note": "This file is the experiment specification. It was written BEFORE any measurement and is READ by the calibration code: the code never hardcodes a range. Calibration may move ONLY signal-detection thresholds. Risk geometry (baseLev/stopPct/targetPct) and strategy semantics are FROZEN and never searched.",
+  "hardRules": [
+    "no randomness: finite grids, deterministic ordering, identical input -> identical output",
+    "no look-ahead: a decision bar may only see data timestamped <= that bar",
+    "control is always inside the searched space (a strategy may always keep CONTROL)",
+    "every tested configuration is persisted, including failures (no silent discards)",
+    "the TEST fold is evaluated once, after the configuration is frozen",
+    "calibration datasets never touch live state, live shadow files or the live learner"
+  ],
+  "panels": {
+    "daily": {
+      "interval": "1d",
+      "range": "5y",
+      "role": "long-horizon signal frequency (context + frequency statistics)"
+    },
+    "hour": {
+      "interval": "60m",
+      "range": "730d",
+      "role": "primary calibration + counterfactual resolution for the four daily-signal strategies"
+    },
+    "quarter": {
+      "interval": "15m",
+      "range": "60d",
+      "role": "intraday strategies (ibreakout, orb) + all-strategy co-firing / cohort panel"
+    }
+  },
+  "splits": {
+    "hour": { "train": 0.6, "validation": 0.2, "test": 0.2 },
+    "quarter": { "train": 0.6, "validation": 0.2, "test": 0.2 },
+    "daily": { "train": 0.6, "validation": 0.2, "test": 0.2 }
+  },
+  "causality": {
+    "dailyContext": "daily bars whose UTC date is STRICTLY EARLIER than the decision bar date, plus the decision bar's own price as the (partial) current daily value -- exactly what the live engine has at decision time. The decision day's FINAL daily close is never visible.",
+    "intradayContext": "intraday closes up to and including the decision bar (the decision bar is complete)",
+    "resolution": "a candidate is resolved ONLY on bars strictly AFTER its decision bar",
+    "note": "tests/phase5.test.mjs mutates future bars and asserts decisions do not change"
+  },
+  "resolutionModel": {
+    "note": "OFFLINE counterfactual (shadow-like) resolution reusing perp.mjs cost model. Documented differences from the live shadow layer: (1) bars, not 30s quotes; intra-bar extremes are used with a CONSERVATIVE ordering -- liquidation, then stop before target when both levels are touched in the same bar; (2) no funding accrual (historical funding rates are not available offline => omitted, bias is small and documented); (3) no wallet/cap/council gates (counterfactual dataset).",
+    "marginUsd": 100,
+    "stopFill": "at the stop level, never worse: a long that gaps below its stop fills at min(stopLevel, barOpen)",
+    "targetFill": "at the target level, never better",
+    "timeTrailFill": "at the EMA mark (same policy as live/shadow)",
+    "funding": "OMITTED (no historical funding rate available)",
+    "maeMfe": "computed from intra-bar extremes against isolated margin"
+  },
+  "objective": {
+    "note": "Signal-ecosystem quality, NOT maximum historical return. P&L is one bounded component; a configuration is never selected for candidate volume alone, and thin samples are neutral (never rewarded).",
+    "weights": { "availability": 0.3, "diversity": 0.2, "cofire": 0.2, "quality": 0.2, "stability": 0.1 },
+    "targetCandidateRate": 0.02,
+    "maxCandidateRate": 0.35,
+    "minTrainCandidates": 10,
+    "minResolvedForQuality": 8,
+    "qualityNeutral": 0.5,
+    "qualityWindowR": 0.5,
+    "maxDrawdownR": 6.0,
+    "drawdownPenaltyWeight": 0.1,
+    "stabilityFolds": 4,
+    "componentForms": {
+      "note": "Exact functional forms of the composite. Documented BEFORE any measurement; never adjusted after seeing results.",
+      "availability": "rate = signals/evaluations; availability = min(1, rate/targetCandidateRate); if rate > maxCandidateRate then availability *= maxCandidateRate/rate (turnover/cost penalty)",
+      "diversity": "0.5*(symbolsCovered/symbolsAvailable) + 0.25*sideCoverage + 0.25*trendContextCoverage(proxy), sideCoverage = 1 if both sides fired, 0.5 if one side (a structurally long-only strategy is NOT punished for having no shorts), 0 if none",
+      "cofire": "clamp(0.5 + 0.5*((calibratedCoFireRate - controlCoFireRate)/max(controlCoFireRate,0.05)), 0, 1); 0.5 = parity with CONTROL",
+      "quality": "if resolved sample >= minResolvedForQuality: clamp(0.5 + meanR/qualityWindowR, 0, 1) else qualityNeutral (thin samples are neutral: never rewarded, never punished)",
+      "stability": "fraction of stabilityFolds chronological sub-folds of the TRAIN fold with >=1 candidate",
+      "drawdownPenalty": "drawdownPenaltyWeight * min(1, maxDrawdownR/maxDrawdownR)",
+      "tieBreak": "highest score wins; equal scores are broken by lexicographic grid key (deterministic)"
+    }
+  },
+  "validationGate": {
+    "minCandidateRatioVsControl": 0.8,
+    "qualityToleranceR": 0.1,
+    "requireScoreNotWorse": true,
+    "note": "a calibrated parameter set replaces CONTROL for a strategy ONLY if it is not worse than CONTROL on the validation fold (candidate availability, cost-adjusted quality within tolerance, composite score). Otherwise the strategy keeps CONTROL and the reason is recorded."
+  },
+  "minCohortsForLearnerAB": 20,
+  "semantics": {
+    "tsmom": "time-series momentum / trend following (strictly: 28d return threshold + 200-SMA agreement)",
+    "donchian": "breakout of a prior N-day channel, trend-filtered",
+    "rsi2dip": "short-term mean reversion (2-period RSI extreme) inside a trend filter",
+    "mom_trend": "momentum + trend confirmation, long only (source specifies no short entry)",
+    "orb": "opening-range breakout (US session, first 30m range, live-only strategy)",
+    "ibreakout": "intraday breakout of the prior 48x15m range"
+  },
+  "frozenBySemantics": [
+    "a strategy's KIND never changes: trend stays trend, breakout stays breakout, mean-reversion stays mean-reversion",
+    "side rules never change: mom_trend remains long-only (no synthetic shorts)",
+    "risk geometry never changes: stopPct/targetPct/baseLev are not searched",
+    "orb remains US-session based; ibreakout remains crypto 15m based"
+  ],
+  "parameterGrids": {
+    "tsmom": {
+      "panel": "hour",
+      "frozen": ["retN", "baseLev", "stopPct", "targetPct", "confLong", "confShort"],
+      "grid": {
+        "retN": [28],
+        "smaN": [100, 200],
+        "momThreshold": [0.01, 0.02, 0.03]
+      }
+    },
+    "donchian": {
+      "panel": "hour",
+      "frozen": ["baseLev", "stopPct", "targetPct", "confLong", "confShort"],
+      "grid": {
+        "lookback": [10, 15, 20, 30],
+        "smaN": [100, 200]
+      }
+    },
+    "rsi2dip": {
+      "panel": "hour",
+      "frozen": ["rsiN", "baseLev", "stopPct", "targetPct", "confLong", "confShort"],
+      "configs": [
+        { "rsiLow": 5, "rsiHigh": 95, "smaN": 200 },
+        { "rsiLow": 10, "rsiHigh": 90, "smaN": 200 },
+        { "rsiLow": 15, "rsiHigh": 85, "smaN": 200 }
+      ]
+    },
+    "mom_trend": {
+      "panel": "hour",
+      "frozen": ["retN", "smaN", "momMin", "rsiMax", "baseLev", "stopPct", "targetPct", "confLong"],
+      "grid": {
+        "retThreshold": [0.03, 0.05, 0.08]
+      }
+    },
+    "ibreakout": {
+      "panel": "quarter",
+      "frozen": ["baseLev", "stopPct", "targetPct", "conf"],
+      "grid": {
+        "bars": [24, 48, 96]
+      }
+    },
+    "orb": {
+      "panel": "quarter",
+      "frozen": ["eligibilityMinutes", "baseLev", "stopPct", "targetPct", "confLong", "confShort"],
+      "grid": {
+        "rangeMinutes": [15, 30, 60]
+      }
+    }
+  }
+}

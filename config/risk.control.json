@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "configuration": "CONTROL",
+  "status": "PRODUCTION — MUST NOT BE MODIFIED",
+  "phase": "phase6-risk-geometry",
+  "source": [
+    "config.json: v2.aggression.maxHoldHours / trailActivateRoi / trailGiveRoi / markEmaAlpha",
+    "config.json: v2.perpFees, slippage, v2.leverage, v2.maintenanceTiers, v2.shadow.marginUsd",
+    "scripts/v2/strategies.mjs CONTROL_PARAMS (per-strategy baseLev / stopPct / targetPct)",
+    "scripts/v2/engine.mjs managePositions (exit ORDER)"
+  ],
+  "note": "Frozen snapshot of the production risk/execution geometry. The live engine reads these values from config.json and from code defaults; this file exists so CONTROL can be measured, hashed and diffed by the Phase 6 offline experiment WITHOUT ever being rewritten. tests/phase6.test.mjs fails if this file and production ever disagree.",
+  "maxHoldHours": 4,
+  "trailing": {
+    "enabled": true,
+    "activateRoi": 0.5,
+    "giveRoi": 0.25,
+    "note": "live engine order: liquidation -> stop -> target -> time -> trailing (engine.mjs managePositions)"
+  },
+  "exitOrder": ["liquidation", "stop-loss", "take-profit", "time-stop", "trailing-stop"],
+  "markEmaAlpha": 0.25,
+  "marginUsd": 100,
+  "fees": {
+    "taker": 0.0005,
+    "maker": 0.0002,
+    "note": "taker on entry AND exit; maker is never assumed by the offline resolver"
+  },
+  "slippage": {
+    "crypto": 0.001,
+    "us": 0.0005,
+    "india": 0.0005,
+    "note": "half of this value is applied adversely on entry and exit, PLUS sqrt market-impact slippageFraction(); both come from perp.mjs"
+  },
+  "funding": "OMITTED_NO_HISTORICAL_RATE",
+  "leverage": {
+    "searched": false,
+    "note": "Leverage is a RISK parameter, not a geometry axis: it is FIXED at CONTROL for every experiment (Phase 6 §3).",
+    "aggression": { "leverageStart": 20, "leverageCeiling": 40, "note": "campaign keys, NOT used by the offline resolver" },
+    "maxLeverageByMarket": { "crypto": 40, "us": 4, "india": 5 },
+    "effectiveByStrategyMarket": {
+      "tsmom": { "crypto": 12, "us": 4, "india": 5 },
+      "donchian": { "crypto": 12, "us": 4, "india": 5 },
+      "rsi2dip": { "crypto": 10, "us": 4, "india": 5 },
+      "mom_trend": { "crypto": 10, "us": 4, "india": 5 },
+      "orb": { "us": 4 },
+      "ibreakout": { "crypto": 15 }
+    }
+  },
+  "liquidation": {
+    "model": "isolated margin, maintenanceMargin(N,tier) = |N|*mmr - deduction; trigger inclusive on the adverse extreme (perp.mjs)",
+    "maintenanceTiers": {
+      "crypto": [
+        { "floor": 0, "cap": 50000, "maxLev": 125, "mmr": 0.004, "deduction": 0 },
+        { "floor": 50000, "cap": 600000, "maxLev": 100, "mmr": 0.005, "deduction": 50 },
+        { "floor": 600000, "cap": 3000000, "maxLev": 75, "mmr": 0.01, "deduction": 3050 }
+      ],
+      "us": [{ "floor": 0, "cap": 100000000, "maxLev": 4, "mmr": 0.12, "deduction": 0 }],
+      "india": [{ "floor": 0, "cap": 100000000, "maxLev": 5, "mmr": 0.1, "deduction": 0 }]
+    }
+  },
+  "perStrategyGeometry": {
+    "tsmom": { "baseLev": 12, "stopPct": 0.05, "targetPct": 0.1, "rMultiple": 2 },
+    "donchian": { "baseLev": 12, "stopPct": 0.05, "targetPct": 0.08, "rMultiple": 1.6 },
+    "rsi2dip": { "baseLev": 10, "stopPct": 0.05, "targetPct": 0.06, "rMultiple": 1.2 },
+    "mom_trend": { "baseLev": 10, "stopPct": 0.05, "targetPct": 0.08, "rMultiple": 1.6 },
+    "orb": { "baseLev": 5, "stopPct": 0.016, "targetPct": 0.028, "rMultiple": 1.75 },
+    "ibreakout": { "baseLev": 15, "stopPct": 0.015, "targetPct": 0.08, "rMultiple": 5.3333333333 }
+  },
+  "noteOnPromptAssumption": "The Phase 6 brief describes CONTROL as a uniform 5% stop / 10% target. That is NOT the production geometry: stopPct/targetPct are per-strategy (see perStrategyGeometry). This snapshot records the true values; the experiment scales each strategy's OWN stop/target."
+}

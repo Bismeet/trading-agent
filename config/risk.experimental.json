@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "configuration": "CONTROL",
+  "frozenAt": "2026-09-14T07:04:03.291Z",
+  "specHash": "72d7352b26402203",
+  "geometry": {
+    "id": "CONTROL",
+    "note": "CONTROL geometry retained — no experimental geometry passed the pre-registered validation gate"
+  },
+  "perStrategy": {
+    "tsmom": {
+      "configId": "CONTROL",
+      "category": "CONTROL",
+      "holdHours": 4,
+      "holdMs": 14400000,
+      "stopScale": 1,
+      "targetScale": 1,
+      "trailingId": "ctrl",
+      "trailing": {
+        "enabled": true,
+        "activateRoi": 0.5,
+        "giveRoi": 0.25
+      },
+      "stopPct": 0.05,
+      "targetPct": 0.1,
+      "stopPctControl": 0.05,
+      "targetPctControl": 0.1,
+      "rMultiple": 2,
+      "baseLev": 12
+    },
+    "donchian": {
+      "configId": "CONTROL",
+      "category": "CONTROL",
+      "holdHours": 4,
+      "holdMs": 14400000,
+      "stopScale": 1,
+      "targetScale": 1,
+      "trailingId": "ctrl",
+      "trailing": {
+        "enabled": true,
+        "activateRoi": 0.5,
+        "giveRoi": 0.25
+      },
+      "stopPct": 0.05,
+      "targetPct": 0.08,
+      "stopPctControl": 0.05,
+      "targetPctControl": 0.08,
+      "rMultiple": 1.5999999999999999,
+      "baseLev": 12
+    },
+    "rsi2dip": {
+      "configId": "CONTROL",
+      "category": "CONTROL",
+      "holdHours": 4,
+      "holdMs": 14400000,
+      "stopScale": 1,
+      "targetScale": 1,
+      "trailingId": "ctrl",
+      "trailing": {
+        "enabled": true,
+        "activateRoi": 0.5,
+        "giveRoi": 0.25
+      },
+      "stopPct": 0.05,
+      "targetPct": 0.06,
+      "stopPctControl": 0.05,
+      "targetPctControl": 0.06,
+      "rMultiple": 1.2,
+      "baseLev": 10
+    },
+    "mom_trend": {
+      "configId": "CONTROL",
+      "category": "CONTROL",
+      "holdHours": 4,
+      "holdMs": 14400000,
+      "stopScale": 1,
+      "targetScale": 1,
+      "trailingId": "ctrl",
+      "trailing": {
+        "enabled": true,
+        "activateRoi": 0.5,
+        "giveRoi": 0.25
+      },
+      "stopPct": 0.05,
+      "targetPct": 0.08,
+      "stopPctControl": 0.05,
+      "targetPctControl": 0.08,
+      "rMultiple": 1.5999999999999999,
+      "baseLev": 10
+    },
+    "orb": {
+      "configId": "CONTROL",
+      "category": "CONTROL",
+      "holdHours": 4,
+      "holdMs": 14400000,
+      "stopScale": 1,
+      "targetScale": 1,
+      "trailingId": "ctrl",
+      "trailing": {
+        "enabled": true,
+        "activateRoi": 0.5,
+        "giveRoi": 0.25
+      },
+      "stopPct": 0.016,
+      "targetPct": 0.028,
+      "stopPctControl": 0.016,
+      "targetPctControl": 0.028,
+      "rMultiple": 1.75,
+      "baseLev": 5
+    },
+    "ibreakout": {
+      "configId": "CONTROL",
+      "category": "CONTROL",
+      "holdHours": 4,
+      "holdMs": 14400000,
+      "stopScale": 1,
+      "targetScale": 1,
+      "trailingId": "ctrl",
+      "trailing": {
+        "enabled": true,
+        "activateRoi": 0.5,
+        "giveRoi": 0.25
+      },
+      "stopPct": 0.015,
+      "targetPct": 0.08,
+      "stopPctControl": 0.015,
+      "targetPctControl": 0.08,
+      "rMultiple": 5.333333333333334,
+      "baseLev": 15
+    }
+  },
+  "note": "written ONCE by geometry-run.mjs after the validation gate; the live engine never reads this file"
+}

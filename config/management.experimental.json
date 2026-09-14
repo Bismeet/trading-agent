@@ -1,0 +1,52 @@
+{
+  "version": "1.0.0",
+  "frozenAt": "2026-09-14T07:29:11.955Z",
+  "specHash": "42cd0a2f9e576ade",
+  "chosenPolicy": "MGMT_ADAPTIVE_HOLD",
+  "changed": true,
+  "reason": "All pre-registered validation gates satisfied",
+  "validationGate": {
+    "passed": true,
+    "chosen": "MGMT_ADAPTIVE_HOLD",
+    "reason": "All pre-registered validation gates satisfied",
+    "checks": [
+      {
+        "name": "minTrainResolved",
+        "required": ">= 500",
+        "actual": 7955,
+        "passed": true
+      },
+      {
+        "name": "minValidationResolved",
+        "required": ">= 150",
+        "actual": 2891,
+        "passed": true
+      },
+      {
+        "name": "availabilityFloor",
+        "required": ">= 15%",
+        "actual": "100.0%",
+        "passed": true
+      },
+      {
+        "name": "economicImprovement",
+        "required": ">= +0.0050 R",
+        "actual": "+0.0161 R",
+        "passed": true
+      },
+      {
+        "name": "drawdownRatio",
+        "required": "<= 120%",
+        "actual": "70.7%",
+        "passed": true
+      },
+      {
+        "name": "subFoldStability",
+        "required": ">= 2 of 4 folds improve",
+        "actual": "4 of 4",
+        "passed": true
+      }
+    ]
+  },
+  "note": "Written strictly after the validation gate; the live engine operates on management.control.json and never reads this file."
+}

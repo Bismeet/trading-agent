@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "configuration": "CONTROL",
+  "status": "PRODUCTION — MUST NOT BE MODIFIED",
+  "source": "scripts/v2/strategies.mjs CONTROL_PARAMS (exact production thresholds, docs/09)",
+  "note": "Frozen snapshot of the production strategy thresholds. The live engine reads these values from code defaults; this file exists so CONTROL can be evaluated, hashed and diffed by Phase 5 tooling without ever being rewritten. If this file and strategies.mjs CONTROL_PARAMS ever disagree, tests/phase5.test.mjs fails.",
+  "marketScope": {
+    "tsmom": ["crypto", "us", "india"],
+    "donchian": ["crypto", "us", "india"],
+    "rsi2dip": ["crypto", "us", "india"],
+    "mom_trend": ["crypto", "us", "india"],
+    "orb": ["us"],
+    "ibreakout": ["crypto"]
+  },
+  "params": {
+    "tsmom": { "retN": 28, "smaN": 200, "momThreshold": 0.03, "baseLev": 12, "stopPct": 0.05, "targetPct": 0.1, "confLong": 0.62, "confShort": 0.55 },
+    "donchian": { "lookback": 20, "smaN": 200, "baseLev": 12, "stopPct": 0.05, "targetPct": 0.08, "confLong": 0.6, "confShort": 0.55 },
+    "rsi2dip": { "rsiN": 2, "rsiLow": 10, "rsiHigh": 90, "smaN": 200, "baseLev": 10, "stopPct": 0.05, "targetPct": 0.06, "confLong": 0.6, "confShort": 0.55 },
+    "mom_trend": { "retN": 28, "smaN": 200, "retThreshold": 0.05, "momMin": 1, "rsiMax": 78, "baseLev": 10, "stopPct": 0.05, "targetPct": 0.08, "confLong": 0.55 },
+    "orb": { "rangeMinutes": 30, "eligibilityMinutes": 5, "baseLev": 5, "stopPct": 0.016, "targetPct": 0.028, "confLong": 0.55, "confShort": 0.5 },
+    "ibreakout": { "bars": 48, "baseLev": 15, "stopPct": 0.015, "targetPct": 0.08, "conf": 0.5 }
+  }
+}

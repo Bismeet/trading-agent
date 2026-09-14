@@ -247,6 +247,15 @@ export function distillEpisodeLessons(state, rec, closedThisEp) {
       regime: worst.regime,
       importance: 7,
     });
+    // CAUSAL: machine-readable penalty consumed by the learner (needs n>=3).
+    if (worst.n >= 3 && worst.strategy && worst.regime) {
+      addMemory({
+        title: `Causal penalty: ${worst.key}`,
+        kind: "causal-penalty", strategy: worst.strategy, regime: worst.regime,
+        adj: 0.7, evidence: `${worst.n} trades ${worst.pnl.toFixed(2)} USD (run ${rec.episodeNum})`,
+        importance: 7,
+      });
+    }
   }
   if (best && best.pnl > 0) {
     addMemory({
@@ -256,6 +265,14 @@ export function distillEpisodeLessons(state, rec, closedThisEp) {
       regime: best.regime,
       importance: 5,
     });
+    if (best.n >= 3 && best.strategy && best.regime) {
+      addMemory({
+        title: `Causal boost: ${best.key}`,
+        kind: "causal-boost", strategy: best.strategy, regime: best.regime,
+        adj: 1.15, evidence: `${best.n} trades +${best.pnl.toFixed(2)} USD (run ${rec.episodeNum})`,
+        importance: 5,
+      });
+    }
   }
 }
 
@@ -263,12 +280,23 @@ function groupPnL(closed) {
   const map = new Map();
   for (const c of closed) {
     const key = `${c.strategy_id ?? "manual"}/${c.regime ?? "unknown"}`;
-    const g = map.get(key) || { key, regime: c.regime, pnl: 0, n: 0 };
+    const g = map.get(key) || { key, strategy: c.strategy_id ?? "manual", regime: c.regime ?? "unknown", pnl: 0, n: 0 };
     g.pnl += c.net_pnl ?? 0;
     g.n += 1;
     map.set(key, g);
   }
   return [...map.values()].sort((a, b) => a.pnl - b.pnl);
+}
+// Structured causal memory (v2-learning): persists worst/best (strategy, regime)
+// as machine-readable bias consumed by rankCandidates. Human lessons above stay.
+export function causalBias(state) {
+  const rows = readJSONL(V2.memory, 500);
+  const penalty = {}, boost = {};
+  for (const m of rows) {
+    if (m?.kind === "causal-penalty" && m.strategy && m.regime) penalty[`${m.regime}|${m.strategy}`] = { adj: m.adj ?? 0.7, evidence: m.evidence ?? "" };
+    if (m?.kind === "causal-boost" && m.strategy && m.regime) boost[`${m.regime}|${m.strategy}`] = { adj: m.adj ?? 1.15, evidence: m.evidence ?? "" };
+  }
+  return { penalty, boost };
 }
 
 // Exact P6 retrieval: last 500, score=importance*.95^ageDays*relevance, k=4.

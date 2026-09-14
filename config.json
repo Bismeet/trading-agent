@@ -83,6 +83,20 @@
       "brainLoopMinutes": 8,
       "maxConcurrentPositions": 10,
       "minNotionalUsd": 2
+    },
+    "learning": {
+      "priorTrades": 10, "priorMeanR": 0, "priorWinRate": 0.5, "priorSE": 0.3,
+      "exploreC": 0.15, "blockMinN": 8, "blockEdge": -0.05,
+      "noTradeUcb": 0.0, "noTradeQuality": 0.7,
+      "maxSetupPerCycle": 2, "maxSameSetupPositions": 2,
+      "qualityGain": 1.5, "qualityLo": 0.25, "qualityHi": 1.6,
+      "sizeGain": 1.2, "sizeLo": 0.5, "sizeHi": 1.5
+    },
+    "shadow": {
+      "enabled": true,
+      "maxOpen": 100,
+      "cooldownMs": 600000,
+      "marginUsd": 100
     }
   }
 }

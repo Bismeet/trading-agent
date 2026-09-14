@@ -1,0 +1,121 @@
+{
+  "version": "1.0.0",
+  "phase": "phase8-portfolio-trade-management",
+  "status": "PRE-REGISTERED — IMMUTABLE",
+  "note": "Pre-registered specification for Phase 8: Portfolio, Execution Economics & Adaptive Trade Management. Tests whether post-entry management policies (adaptive holding, breakeven stops, cutting deteriorating trades, partial exits, and portfolio correlation controls) convert the Phase 7 conditional edge into robust net expectancy after transaction costs.",
+  "panels": {
+    "daily": {
+      "interval": "1d",
+      "range": "5y",
+      "strategies": ["tsmom", "donchian", "rsi2dip", "mom_trend"]
+    },
+    "quarter": {
+      "interval": "15m",
+      "range": "90d",
+      "strategies": ["orb", "ibreakout"]
+    }
+  },
+  "splits": {
+    "daily": { "train": 0.60, "validation": 0.20, "test": 0.20 },
+    "quarter": { "train": 0.60, "validation": 0.20, "test": 0.20 }
+  },
+  "strategies": ["tsmom", "donchian", "rsi2dip", "mom_trend", "orb", "ibreakout"],
+  "entryBaselines": {
+    "ENTRY_CONTROL": "All generated candidate signals admitted (take-all baseline)",
+    "ENTRY_FILTERED": "Phase 7 frozen RULE_MULTI_AGREEMENT (co-firing agreement >= 1)"
+  },
+  "postEntryStates": [
+    { "id": "INITIAL", "description": "Elapsed hold < 1 hour, excursions within initial noise band" },
+    { "id": "DEVELOPING", "description": "Elapsed hold >= 1 hour, normal progression, |MFE| < 0.5 R" },
+    { "id": "FAVORABLE", "description": "MFE >= +0.5 R, position demonstrating strong directional edge" },
+    { "id": "STALLED", "description": "Previously favorable, but no new MFE peak established for >= 2 hours" },
+    { "id": "DETERIORATING", "description": "MAE <= -0.5 R while MFE < +0.2 R (trade moved straight into adverse territory)" },
+    { "id": "OPPOSING", "description": "Opposing trend direction or opposing strategy signal detected" },
+    { "id": "EXIT", "description": "Terminal state: order executed and position closed" }
+  ],
+  "managementPolicies": [
+    {
+      "id": "MGMT_CONTROL",
+      "category": "BASELINE",
+      "description": "Production CONTROL management: 4h max hold, standard stop/target, standard trailing (0.50/0.25)"
+    },
+    {
+      "id": "MGMT_EXTENDED_HOLD_12H",
+      "category": "HOLDING",
+      "description": "Fixed 12h holding horizon, standard stop/target/trailing"
+    },
+    {
+      "id": "MGMT_BREAKEVEN_STOP",
+      "category": "STOP",
+      "description": "Move stop loss to entry price (breakeven) once MFE >= +0.5 R"
+    },
+    {
+      "id": "MGMT_CUT_DETERIORATING",
+      "category": "STOP",
+      "description": "Exit early at 2h if state is DETERIORATING (MAE <= -0.5 R and MFE < +0.2 R)"
+    },
+    {
+      "id": "MGMT_ADAPTIVE_HOLD",
+      "category": "HOLDING",
+      "description": "Adaptive holding: extend to 12h if FAVORABLE (MFE >= +0.5 R), exit at 2h if DETERIORATING"
+    },
+    {
+      "id": "MGMT_PARTIAL_EXIT",
+      "category": "TARGET",
+      "description": "At +1.0 R, close 50% of position (locking half profit), move stop to breakeven on remaining 50% and trail to 12h"
+    },
+    {
+      "id": "MGMT_TIGHT_TRAIL",
+      "category": "TRAILING",
+      "description": "Tight trailing stop: activate at 0.30 ROI, giveback 0.15 ROI"
+    },
+    {
+      "id": "MGMT_ADAPTIVE_COMPOSITE",
+      "category": "COMPOSITE",
+      "description": "Adaptive Composite: adaptive hold (favorable to 12h, deteriorating cut at 2h) + Breakeven stop at +0.5 R MFE + tight trailing"
+    }
+  ],
+  "portfolioControls": {
+    "concurrentCap": 5,
+    "correlationClusters": {
+      "crypto_majors": ["BTC-USD", "ETH-USD", "SOL-USD"],
+      "clusterMaxLong": 2
+    },
+    "qualitySizing": {
+      "enabled": true,
+      "soloMarginUsd": 75,
+      "confirmedMarginUsd": 125
+    }
+  },
+  "comparisonMatrix": [
+    { "key": "A", "name": "CONTROL ENTRY + CONTROL MANAGEMENT", "entry": "ENTRY_CONTROL", "mgmt": "MGMT_CONTROL", "portfolio": false },
+    { "key": "B", "name": "PHASE 7 FILTER + CONTROL MANAGEMENT", "entry": "ENTRY_FILTERED", "mgmt": "MGMT_CONTROL", "portfolio": false },
+    { "key": "C", "name": "PHASE 7 FILTER + EXPERIMENTAL MANAGEMENT", "entry": "ENTRY_FILTERED", "mgmt": "CHOSEN_MGMT", "portfolio": false },
+    { "key": "D", "name": "PHASE 7 FILTER + EXPERIMENTAL MANAGEMENT + PORTFOLIO CONTROL", "entry": "ENTRY_FILTERED", "mgmt": "CHOSEN_MGMT", "portfolio": true }
+  ],
+  "validationGate": {
+    "minTrainResolved": 500,
+    "minValidationResolved": 150,
+    "minAcceptedRate": 0.15,
+    "minImprovementNetR": 0.0050,
+    "maxDrawdownIncreaseRatio": 1.20,
+    "stabilityFolds": 4,
+    "minPositiveFolds": 2
+  },
+  "objective": {
+    "weights": {
+      "netR": 1.0,
+      "winRate": 0.10,
+      "mfeCapture": 0.05,
+      "drawdownPenalty": 0.02
+    }
+  },
+  "costModel": {
+    "takerFee": 0.0005,
+    "makerFee": 0.0002,
+    "cryptoSlip": 0.001,
+    "usSlip": 0.0005,
+    "indiaSlip": 0.0005
+  },
+  "profitabilityGuard": "PROFITABILITY: NOT VERIFIED. Under the project charter, neither single-trade return, backtest results, nor offline candidate selection constitute verified live profitability."
+}

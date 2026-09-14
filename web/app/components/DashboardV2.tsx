@@ -40,6 +40,66 @@ function AgentLog({ s }: { s: any }) {
   );
 }
 
+// ---- Learning diagnostics card (Phase 2 §16): status, cells, best-context, abstention ----
+function LearningCard({ s }: { s: any }) {
+  const d = s?.learning ?? {};
+  const cells = Array.isArray(d.top) ? d.top : [];
+  const last = Array.isArray(d.lastDecisions) ? d.lastDecisions[d.lastDecisions.length - 1] : null;
+  return (
+    <div className="card-quiet p-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h2 className="font-display font-semibold text-sm">Contextual Learner</h2>
+        <span className="text-[11px] text-inksoft">local bandit · no LLM · {d.cells ?? 0} cells</span>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs tnum">
+        <span>experiences <b className="text-ink">{d.experiences ?? 0}</b></span>
+        <span>evidence n≥5 <b className="text-ink">{d.cells5 ?? 0}</b></span>
+        <span>evidence n≥20 <b className="text-ink">{d.cells20 ?? 0}</b></span>
+        <span>blocked <b className="text-downink">{d.blocked ?? 0}</b></span>
+        <span>abstain rate <b className="text-gold">{d.abstainRate != null ? (100 * d.abstainRate).toFixed(0) + "%" : "—"}</b></span>
+      </div>
+      {cells.length > 0 && (
+        <ul className="mt-2 text-xs flex flex-col gap-1">
+          {cells.slice(0, 4).map((c: any, i: number) => (
+            <li key={i} className="flex justify-between tnum">
+              <span className="text-inksoft">{c.key}</span>
+              <span className={c.expectancyR >= 0 ? "text-upink" : "text-downink"}>
+                n={c.n} · {c.expectancyR >= 0 ? "+" : ""}{c.expectancyR.toFixed(3)}R
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs tnum">
+        <span>candidates <b className="text-ink">{d.candidates ?? 0}</b></span>
+        <span>executed <b className="text-ink">{d.executedCount ?? 0}</b></span>
+        <span>shadow <b className="text-ink">{d.shadowOpened ?? 0}</b> (resolved {d.shadowResolved ?? 0})</span>
+        <span>cohorts <b className="text-ink">{d.cohorts ?? 0}</b></span>
+      </div>
+      {d.strategyDistribution && Object.keys(d.strategyDistribution).length > 0 && (
+        <div className="mt-1 text-[11px] text-inksoft tnum">
+          strategy distribution:{" "}
+          {Object.entries(d.strategyDistribution)
+            .sort((a: any, b: any) => b[1] - a[1])
+            .map(([k, v]: any) => `${k} ${Math.round((100 * v) / Math.max(1, d.executedCount ?? v))}%`)
+            .join(" · ")}
+        </div>
+      )}
+      <div className="mt-2 text-[11px] flex items-baseline gap-2">
+        <span className="text-inksoft">Learning confidence:</span>
+        <b className={d.confidence === "INSUFFICIENT DATA" ? "text-gold" : "text-ink"}>{d.confidence ?? "INSUFFICIENT DATA"}</b>
+      </div>
+      {d.confidenceWhy && <p className="text-[11px] text-inksoft">Why: {d.confidenceWhy}.</p>}
+      {last && (
+        <div className="mt-2 text-[11px] text-inksoft">
+          last: <b className="text-ink">{last.decision}</b>{last.selected ? ` → ${last.selected}` : ""} · {last.symbol} · {last.reason ?? ""}
+        </div>
+      )}
+      <p className="mt-2 text-[11px] text-inksoft">Past trade outcomes change ranking, size and abstention. Risk gates always win. Shadow trades are counterfactuals only — never real P&L.</p>
+    </div>
+  );
+}
+
 // ---- Owner control panel (manual restart / goal / capital / hours / survival) ----
 function ControlPanel({ s }: { s: any }) {
   const [capital, setCapital] = useState("100");
@@ -327,6 +387,8 @@ function Overview({ v2, s }: { v2: any; s: any }) {
       <PositionGrid positions={s.positions ?? []} />
 
       <AgentLog s={s} />
+
+      <LearningCard s={s} />
 
       <ControlPanel s={s} />
 

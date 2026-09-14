@@ -1,0 +1,168 @@
+{
+  "version": "1.0.0",
+  "phase": "phase7-signal-edge-selection",
+  "status": "PRE-REGISTERED — IMMUTABLE",
+  "note": "Pre-registered specification for Phase 7: Signal Edge & Trade Selection Validation. Evaluates whether deterministic pre-trade context filtering creates conditional edge over the TAKE_ALL baseline. All thresholds, feature definitions, validation gates, and comparison rules must be frozen before TEST evaluation.",
+  "panels": {
+    "daily": {
+      "interval": "1d",
+      "range": "5y",
+      "strategies": ["tsmom", "donchian", "rsi2dip", "mom_trend"]
+    },
+    "quarter": {
+      "interval": "15m",
+      "range": "90d",
+      "strategies": ["orb", "ibreakout"]
+    }
+  },
+  "splits": {
+    "daily": { "train": 0.60, "validation": 0.20, "test": 0.20 },
+    "quarter": { "train": 0.60, "validation": 0.20, "test": 0.20 }
+  },
+  "strategies": ["tsmom", "donchian", "rsi2dip", "mom_trend", "orb", "ibreakout"],
+  "frozenRiskGeometry": {
+    "category": "CONTROL",
+    "holdHours": 4,
+    "stopScale": 1.0,
+    "targetScale": 1.0,
+    "trailing": true
+  },
+  "featureFamilies": {
+    "trend": [
+      { "id": "trend_direction", "type": "categorical", "values": ["bullish", "bearish"], "description": "Price position relative to SMA50" },
+      { "id": "ma_slope", "type": "continuous", "description": "5-bar percentage slope of SMA20" },
+      { "id": "dist_from_ma", "type": "continuous", "description": "Distance from price to SMA20 in percent" },
+      { "id": "trend_strength", "type": "continuous", "description": "Absolute distance from price to SMA50 normalized by ATR14" },
+      { "id": "price_range_pos", "type": "continuous", "bounds": [0, 1], "description": "Normalized position of price in recent 20-bar high-low range" }
+    ],
+    "momentum": [
+      { "id": "recent_return", "type": "continuous", "description": "5-bar trailing return" },
+      { "id": "momentum_accel", "type": "continuous", "description": "Difference between recent 5-bar return and prior 5-bar return" },
+      { "id": "multi_horizon_agree", "type": "boolean", "description": "Whether 5-bar and 20-bar returns share the same sign" },
+      { "id": "breakout_dist", "type": "continuous", "description": "Distance beyond 20-bar channel high/low" }
+    ],
+    "volatility": [
+      { "id": "atr_norm", "type": "continuous", "description": "14-bar ATR normalized by price" },
+      { "id": "realized_vol", "type": "continuous", "description": "Standard deviation of 20-bar log returns" },
+      { "id": "vol_expansion", "type": "continuous", "description": "Ratio of 14-bar ATR to 50-bar ATR (>1 indicates expansion)" },
+      { "id": "vol_percentile", "type": "discrete", "bounds": [1, 5], "description": "Quintile rank of ATR14 over prior 100 bars (1=lowest, 5=highest)" }
+    ],
+    "marketStructure": [
+      { "id": "range_compression", "type": "continuous", "description": "Ratio of 10-bar range to 50-bar range" },
+      { "id": "range_expansion", "type": "continuous", "description": "Current bar range divided by 14-bar ATR" },
+      { "id": "breakout_quality", "type": "continuous", "bounds": [0, 1], "description": "Bar body size divided by total bar range" },
+      { "id": "dist_to_recent_extrema", "type": "continuous", "description": "Minimum distance to 20-bar high or low as percent" },
+      { "id": "recent_reversal_count", "type": "discrete", "bounds": [0, 10], "description": "Count of return sign flips over last 10 bars" }
+    ],
+    "liquidityCost": [
+      { "id": "expected_move", "type": "continuous", "description": "Expected price movement proxy (ATR14 / price)" },
+      { "id": "est_cost", "type": "continuous", "description": "Round-trip transaction friction (2*takerFee + halfSpread + adverseSlip)" },
+      { "id": "move_to_cost_ratio", "type": "continuous", "description": "Expected move divided by round-trip transaction friction" }
+    ],
+    "confirmation": [
+      { "id": "strategy_agreement_count", "type": "discrete", "description": "Number of other strategies generating matching-side signals at the same bar" },
+      { "id": "trend_agree", "type": "boolean", "description": "Whether candidate signal side aligns with trend_direction" }
+    ]
+  },
+  "quantileBuckets": {
+    "Q1": [0.0, 0.20],
+    "Q2": [0.20, 0.40],
+    "Q3": [0.40, 0.60],
+    "Q4": [0.60, 0.80],
+    "Q5": [0.80, 1.00]
+  },
+  "selectionRules": [
+    {
+      "id": "RULE_TAKE_ALL",
+      "category": "BASELINE",
+      "description": "Admit all candidate signals without filtering (CONTROL baseline)"
+    },
+    {
+      "id": "RULE_TREND_ALIGN",
+      "category": "TREND",
+      "description": "Admit only if candidate side aligns with trend direction (trend_agree === true)"
+    },
+    {
+      "id": "RULE_TREND_STRENGTH",
+      "category": "TREND",
+      "description": "Admit if trend_agree is true AND trend_strength >= 1.0"
+    },
+    {
+      "id": "RULE_VOL_EXPANSION",
+      "category": "VOLATILITY",
+      "description": "Admit if vol_expansion >= 1.0 (ATR14 expands above 50-bar baseline)"
+    },
+    {
+      "id": "RULE_VOL_Q3_PLUS",
+      "category": "VOLATILITY",
+      "description": "Admit if vol_percentile >= 3 (upper 60% of 100-bar volatility history)"
+    },
+    {
+      "id": "RULE_MOVE_COST_RATIO_MIN",
+      "category": "COST",
+      "description": "Admit if move_to_cost_ratio >= 2.0 (expected move at least 2x friction)"
+    },
+    {
+      "id": "RULE_MOVE_COST_RATIO_STRICT",
+      "category": "COST",
+      "description": "Admit if move_to_cost_ratio >= 3.0 (expected move at least 3x friction)"
+    },
+    {
+      "id": "RULE_MOMENTUM_CONFIRM",
+      "category": "MOMENTUM",
+      "description": "Admit if multi_horizon_agree is true and matches trade side"
+    },
+    {
+      "id": "RULE_RANGE_EXPANSION",
+      "category": "STRUCTURE",
+      "description": "Admit if range_expansion >= 1.0 (current bar range expands above ATR14)"
+    },
+    {
+      "id": "RULE_MULTI_AGREEMENT",
+      "category": "CONFIRMATION",
+      "description": "Admit if strategy_agreement_count >= 1 (at least 1 other strategy agrees on side)"
+    },
+    {
+      "id": "RULE_TREND_AND_VOL",
+      "category": "COMPOSITE",
+      "description": "Admit if trend_agree is true AND vol_expansion >= 1.0"
+    },
+    {
+      "id": "RULE_TREND_AND_COST",
+      "category": "COMPOSITE",
+      "description": "Admit if trend_agree is true AND move_to_cost_ratio >= 2.0"
+    },
+    {
+      "id": "RULE_COMPOSITE_QUALITY",
+      "category": "COMPOSITE",
+      "description": "Admit if trend_agree is true AND move_to_cost_ratio >= 2.0 AND vol_percentile >= 3"
+    }
+  ],
+  "validationGate": {
+    "minTrainResolved": 500,
+    "minValidationResolved": 150,
+    "minAcceptedRate": 0.15,
+    "minImprovementNetR": 0.005,
+    "maxDrawdownIncreaseRatio": 1.20,
+    "stabilityFolds": 4,
+    "minPositiveFolds": 2
+  },
+  "objective": {
+    "weights": {
+      "netR": 1.0,
+      "winRate": 0.10,
+      "availability": 0.05,
+      "drawdownPenalty": 0.02
+    },
+    "targetAvailability": 0.50
+  },
+  "holdingPeriods": [1, 2, 4, 8, 12, 24],
+  "costModel": {
+    "takerFee": 0.0005,
+    "makerFee": 0.0002,
+    "cryptoSlip": 0.001,
+    "usSlip": 0.0005,
+    "indiaSlip": 0.0005
+  },
+  "profitabilityGuard": "PROFITABILITY: NOT VERIFIED. Under the project charter, neither single-trade return, backtest results, nor offline candidate selection constitute verified live profitability."
+}

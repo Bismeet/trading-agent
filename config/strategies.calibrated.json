@@ -1,0 +1,275 @@
+{
+  "version": 1,
+  "configuration": "CALIBRATED",
+  "status": "FROZEN",
+  "spec": {
+    "path": "config/calibration-spec.v1.json",
+    "version": 1,
+    "hash": "567e2e9e26f30fcb"
+  },
+  "selectionSource": "TRAIN (60%) scored, VALIDATION (20%) gate, TEST (20%) evaluated once AFTER freezing",
+  "controlPreserved": "config/strategies.control.json (CONTROL: 4/6 strategies unchanged)",
+  "changedStrategies": [
+    "donchian",
+    "rsi2dip"
+  ],
+  "params": {
+    "tsmom": {
+      "retN": 28,
+      "smaN": 200,
+      "momThreshold": 0.03,
+      "baseLev": 12,
+      "stopPct": 0.05,
+      "targetPct": 0.1,
+      "confLong": 0.62,
+      "confShort": 0.55
+    },
+    "donchian": {
+      "lookback": 30,
+      "smaN": 200,
+      "baseLev": 12,
+      "stopPct": 0.05,
+      "targetPct": 0.08,
+      "confLong": 0.6,
+      "confShort": 0.55
+    },
+    "rsi2dip": {
+      "rsiN": 2,
+      "rsiLow": 15,
+      "rsiHigh": 85,
+      "smaN": 200,
+      "baseLev": 10,
+      "stopPct": 0.05,
+      "targetPct": 0.06,
+      "confLong": 0.6,
+      "confShort": 0.55
+    },
+    "mom_trend": {
+      "retN": 28,
+      "smaN": 200,
+      "retThreshold": 0.05,
+      "momMin": 1,
+      "rsiMax": 78,
+      "baseLev": 10,
+      "stopPct": 0.05,
+      "targetPct": 0.08,
+      "confLong": 0.55
+    },
+    "orb": {
+      "rangeMinutes": 30,
+      "eligibilityMinutes": 5,
+      "baseLev": 5,
+      "stopPct": 0.016,
+      "targetPct": 0.028,
+      "confLong": 0.55,
+      "confShort": 0.5
+    },
+    "ibreakout": {
+      "bars": 48,
+      "baseLev": 15,
+      "stopPct": 0.015,
+      "targetPct": 0.08,
+      "conf": 0.5
+    }
+  },
+  "decisions": {
+    "tsmom": {
+      "panel": "hour",
+      "chosen": "CONTROL",
+      "reason": "CONTROL was the best-scoring TRAIN configuration",
+      "gateDetail": [
+        "no change needed: CONTROL selected on TRAIN"
+      ],
+      "gridSize": 6,
+      "gridTested": 6,
+      "controlParams": {
+        "retN": 28,
+        "smaN": 200,
+        "momThreshold": 0.03,
+        "baseLev": 12,
+        "stopPct": 0.05,
+        "targetPct": 0.1,
+        "confLong": 0.62,
+        "confShort": 0.55
+      },
+      "calibratedParams": {
+        "retN": 28,
+        "smaN": 200,
+        "momThreshold": 0.03,
+        "baseLev": 12,
+        "stopPct": 0.05,
+        "targetPct": 0.1,
+        "confLong": 0.62,
+        "confShort": 0.55
+      },
+      "trainScoreControl": 0.471988,
+      "validationScoreControl": 0.444685,
+      "validationScoreWinner": 0.471988
+    },
+    "donchian": {
+      "panel": "hour",
+      "chosen": "CALIBRATED",
+      "reason": "TRAIN winner passed the validation gate",
+      "gateDetail": [
+        "validation cost-adjusted meanR -0.0040 vs CONTROL -0.0120 (within tolerance)"
+      ],
+      "gridSize": 8,
+      "gridTested": 8,
+      "controlParams": {
+        "lookback": 20,
+        "smaN": 200,
+        "baseLev": 12,
+        "stopPct": 0.05,
+        "targetPct": 0.08,
+        "confLong": 0.6,
+        "confShort": 0.55
+      },
+      "calibratedParams": {
+        "lookback": 30,
+        "smaN": 200,
+        "baseLev": 12,
+        "stopPct": 0.05,
+        "targetPct": 0.08,
+        "confLong": 0.6,
+        "confShort": 0.55
+      },
+      "trainScoreControl": 0.593926,
+      "validationScoreControl": 0.592932,
+      "validationScoreWinner": 0.602091
+    },
+    "rsi2dip": {
+      "panel": "hour",
+      "chosen": "CALIBRATED",
+      "reason": "TRAIN winner passed the validation gate",
+      "gateDetail": [
+        "validation cost-adjusted meanR -0.0190 vs CONTROL -0.0193 (within tolerance)"
+      ],
+      "gridSize": 3,
+      "gridTested": 3,
+      "controlParams": {
+        "rsiN": 2,
+        "rsiLow": 10,
+        "rsiHigh": 90,
+        "smaN": 200,
+        "baseLev": 10,
+        "stopPct": 0.05,
+        "targetPct": 0.06,
+        "confLong": 0.6,
+        "confShort": 0.55
+      },
+      "calibratedParams": {
+        "rsiN": 2,
+        "rsiLow": 15,
+        "rsiHigh": 85,
+        "smaN": 200,
+        "baseLev": 10,
+        "stopPct": 0.05,
+        "targetPct": 0.06,
+        "confLong": 0.6,
+        "confShort": 0.55
+      },
+      "trainScoreControl": 0.585393,
+      "validationScoreControl": 0.551037,
+      "validationScoreWinner": 0.592469
+    },
+    "mom_trend": {
+      "panel": "hour",
+      "chosen": "CONTROL",
+      "reason": "CONTROL was the best-scoring TRAIN configuration",
+      "gateDetail": [
+        "no change needed: CONTROL selected on TRAIN"
+      ],
+      "gridSize": 3,
+      "gridTested": 3,
+      "controlParams": {
+        "retN": 28,
+        "smaN": 200,
+        "retThreshold": 0.05,
+        "momMin": 1,
+        "rsiMax": 78,
+        "baseLev": 10,
+        "stopPct": 0.05,
+        "targetPct": 0.08,
+        "confLong": 0.55
+      },
+      "calibratedParams": {
+        "retN": 28,
+        "smaN": 200,
+        "retThreshold": 0.05,
+        "momMin": 1,
+        "rsiMax": 78,
+        "baseLev": 10,
+        "stopPct": 0.05,
+        "targetPct": 0.08,
+        "confLong": 0.55
+      },
+      "trainScoreControl": 0.541149,
+      "validationScoreControl": 0.507065,
+      "validationScoreWinner": 0.541149
+    },
+    "orb": {
+      "panel": "quarter",
+      "chosen": "CONTROL",
+      "reason": "validation gate rejected the TRAIN winner: validation candidate availability 657 vs CONTROL 960 (ratio 0.68 < 0.8)",
+      "gateDetail": [
+        "validation candidate availability 657 vs CONTROL 960 (ratio 0.68 < 0.8)",
+        "validation cost-adjusted meanR -0.2019 vs CONTROL -0.1802 (within tolerance)"
+      ],
+      "gridSize": 3,
+      "gridTested": 3,
+      "controlParams": {
+        "rangeMinutes": 30,
+        "eligibilityMinutes": 5,
+        "baseLev": 5,
+        "stopPct": 0.016,
+        "targetPct": 0.028,
+        "confLong": 0.55,
+        "confShort": 0.5
+      },
+      "calibratedParams": {
+        "rangeMinutes": 30,
+        "eligibilityMinutes": 5,
+        "baseLev": 5,
+        "stopPct": 0.016,
+        "targetPct": 0.028,
+        "confLong": 0.55,
+        "confShort": 0.5
+      },
+      "trainScoreControl": 0.405851,
+      "validationScoreControl": 0.398547,
+      "validationScoreWinner": 0.439951
+    },
+    "ibreakout": {
+      "panel": "quarter",
+      "chosen": "CONTROL",
+      "reason": "validation gate rejected the TRAIN winner: validation candidate availability 395 vs CONTROL 607 (ratio 0.65 < 0.8)",
+      "gateDetail": [
+        "validation candidate availability 395 vs CONTROL 607 (ratio 0.65 < 0.8)",
+        "validation cost-adjusted meanR -0.0626 vs CONTROL -0.1553 (within tolerance)"
+      ],
+      "gridSize": 3,
+      "gridTested": 3,
+      "controlParams": {
+        "bars": 48,
+        "baseLev": 15,
+        "stopPct": 0.015,
+        "targetPct": 0.08,
+        "conf": 0.5
+      },
+      "calibratedParams": {
+        "bars": 48,
+        "baseLev": 15,
+        "stopPct": 0.015,
+        "targetPct": 0.08,
+        "conf": 0.5
+      },
+      "trainScoreControl": 0.576586,
+      "validationScoreControl": 0.537876,
+      "validationScoreWinner": 0.593907
+    }
+  },
+  "provenance": {
+    "frozenAt": 1789307461278,
+    "note": "this file is written by scripts/v2/calibration-search.mjs from TRAIN+VALIDATION only; it is never edited by hand"
+  }
+}
