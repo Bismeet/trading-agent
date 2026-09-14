@@ -1,0 +1,187 @@
+{
+  "version": "1.0.0",
+  "phase": "alpha-research",
+  "status": "PRE-REGISTERED — IMMUTABLE",
+  "note": "Pre-registered protocol for ALPHA RESEARCH (post-Phase-9). This is NOT a risk-management or parameter-tuning phase. It asks one question: does the market signal contain enough predictive information to make money after realistic transaction costs? Every threshold below was fixed BEFORE any measurement. The runner reads this file and may not invent thresholds in code.",
+  "objective": "Discover whether a materially stronger entry signal exists whose expected favourable movement is large enough and reliable enough to survive realistic transaction costs.",
+  "data": {
+    "researchPanel": "hour",
+    "researchInterval": "60m",
+    "researchRange": "730d",
+    "contextPanel": "daily",
+    "excludedPanels": [
+      {
+        "panel": "quarter",
+        "reason": "15m panel covers only 60 calendar days; a 60-day window cannot support robust out-of-sample evidence and would invite one-period artefacts."
+      }
+    ],
+    "barMs": 3600000
+  },
+  "splits": { "train": 0.6, "validation": 0.2, "test": 0.2 },
+  "subFolds": 4,
+  "horizonsHours": [4, 8, 12, 24, 48, 72],
+  "primaryHorizonHours": 48,
+  "signalFamilies": [
+    { "id": "A", "name": "TREND_BREAKOUT", "signals": ["breakout48_trend"] },
+    { "id": "B", "name": "TREND_PERSISTENCE", "signals": ["persistence3"] },
+    { "id": "C", "name": "MOMENTUM_CONTINUATION", "signals": ["momentum24"] },
+    { "id": "D", "name": "VOL_EXPANSION_BREAKOUT", "signals": ["volexp_breakout"] },
+    { "id": "E", "name": "COMPRESSION_THEN_EXPANSION", "signals": ["compression_breakout"] },
+    { "id": "F", "name": "MULTI_TIMEFRAME_CONFIRMATION", "signals": ["mtf_4h_24h", "mtf_breakout_daily"] },
+    { "id": "G", "name": "MARKET_REGIME_DIRECTION", "signals": ["regime_gated_breakout"] }
+  ],
+  "signals": [
+    {
+      "id": "breakout48_trend",
+      "family": "A",
+      "name": "48h breakout with 24h trend agreement",
+      "definition": "close > max(prior 48 hourly highs) AND r24 > 0 AND dailyAboveSma50 (long); exact mirror for short",
+      "uses": ["breakout48", "r24", "dailyAboveSma50"]
+    },
+    {
+      "id": "persistence3",
+      "family": "B",
+      "name": "Three-horizon trend persistence",
+      "definition": "sign(r4) == sign(r24) == sign(r72) != 0 AND z24 >= 1.0",
+      "uses": ["r4", "r24", "r72", "z24"]
+    },
+    {
+      "id": "momentum24",
+      "family": "C",
+      "name": "24h momentum continuation",
+      "definition": "z24 >= 1.5 AND sign(r24) == sign(r72)",
+      "uses": ["r24", "r72", "z24"]
+    },
+    {
+      "id": "volexp_breakout",
+      "family": "D",
+      "name": "Volatility expansion plus 48h breakout",
+      "definition": "breakout48 direction AND volExpansion >= 1.2",
+      "uses": ["breakout48", "volExpansion", "r24", "dailyAboveSma50"]
+    },
+    {
+      "id": "compression_breakout",
+      "family": "E",
+      "name": "Range compression then expansion",
+      "definition": "rangeCompression <= 0.6 AND close outside prior 48-bar channel AND bodyRatio >= 0.5",
+      "uses": ["rangeCompression", "breakout48", "bodyRatio"]
+    },
+    {
+      "id": "mtf_4h_24h",
+      "family": "F",
+      "name": "4h breakout confirmed by 24h trend",
+      "definition": "close > max(prior 4 hourly highs) AND z24 >= 0.5 AND dailyAboveSma50",
+      "uses": ["breakout4", "z24", "dailyAboveSma50"]
+    },
+    {
+      "id": "mtf_breakout_daily",
+      "family": "F",
+      "name": "24h breakout confirmed by 72h trend and daily SMA200",
+      "definition": "close > max(prior 24 hourly highs) AND r72 > 0 AND dailyAboveSma200",
+      "uses": ["breakout24", "r72", "dailyAboveSma200"]
+    },
+    {
+      "id": "regime_gated_breakout",
+      "family": "G",
+      "name": "48h breakout gated to strong-trend regime",
+      "definition": "breakout48 direction AND trendRegime == strong_trend AND regimeDirection agrees with side",
+      "uses": ["breakout48", "trendRegime", "regimeDirection"]
+    }
+  ],
+  "arms": [
+    { "id": "BASELINE_DONCHIAN_PROD", "kind": "benchmark", "entry": "bench_donchian_prod", "management": "MGMT_CONTROL", "horizonHours": null },
+    { "id": "DONCHIAN_H48", "kind": "benchmark", "entry": "bench_donchian_prod", "management": "FIXED_HORIZON", "horizonHours": 48 },
+    { "id": "NEW_ALPHA", "kind": "alpha", "entry": "alpha_selected", "management": "FIXED_HORIZON", "horizonHours": "primary" },
+    { "id": "NEW_ALPHA_QUALITY", "kind": "alpha", "entry": "alpha_quality_layer", "management": "FIXED_HORIZON", "horizonHours": "primary" },
+    { "id": "NEW_ALPHA_PHASE7", "kind": "alpha", "entry": "alpha_phase7_agreement", "management": "FIXED_HORIZON", "horizonHours": "primary" },
+    { "id": "NEW_ALPHA_PHASE8", "kind": "alpha", "entry": "alpha_selected", "management": "MGMT_ADAPTIVE_HOLD", "horizonHours": null },
+    { "id": "NEW_ALPHA_QUALITY_PHASE8", "kind": "alpha", "entry": "alpha_quality_layer", "management": "MGMT_ADAPTIVE_HOLD", "horizonHours": null }
+  ],
+  "featureThresholds": {
+    "breakoutLookbacks": [4, 24, 48],
+    "volExpansionMin": 1.2,
+    "compressionRatioMax": 0.6,
+    "compressionShortWindow": 48,
+    "compressionLongWindow": 240,
+    "bodyRatioMin": 0.5,
+    "persistenceZMin": 1.0,
+    "momentumZMin": 1.5,
+    "mtfZMin": 0.5,
+    "strongTrendZ": 1.5,
+    "weakTrendZ": 0.5,
+    "volRegimeHighRatio": 1.5,
+    "volRegimeLowRatio": 0.7,
+    "volRatioWindow": 240,
+    "expansionVolRatio": 1.3,
+    "contractionVolRatio": 1.0,
+    "compressionRegimeMax": 0.65,
+    "atrFastN": 14,
+    "atrSlowN": 50,
+    "dailySmaFastN": 50,
+    "dailySmaSlowN": 200
+  },
+  "breakoutQualityBuckets": {
+    "note": "Breakout quality is measured, never assumed. Each axis is bucketed by TRAIN-only quintiles.",
+    "axes": ["breakoutDistAtr", "volExpansion", "bodyRatio", "rangeCompression", "distFromMidAtr", "dailyTrendAgree"]
+  },
+  "falseBreakoutRejectionRules": [
+    { "id": "REJ_NO_VOL_EXPANSION", "definition": "reject when volExpansion < 1.0" },
+    { "id": "REJ_WEAK_BODY", "definition": "reject when bodyRatio < 0.3" },
+    { "id": "REJ_COUNTER_DAILY_TREND", "definition": "reject when the side disagrees with the causal daily SMA50 trend" },
+    { "id": "REJ_MARGINAL_BREAKOUT", "definition": "reject when the breakout distance is below 0.25 hourly ATR beyond the prior channel" },
+    { "id": "REJ_OVEREXTENDED", "definition": "reject when |close - 48-bar mid| / atr14 > 2.0 (late, extended entry)" }
+  ],
+  "costModel": {
+    "marginUsd": 100,
+    "takerFee": 0.0005,
+    "slippageByMarket": { "crypto": 0.001, "us": 0.0005, "india": 0.0005 },
+    "note": "Same primitives as production (perp.mjs): taker fee on both legs, adverse fills = half spread + square-root impact."
+  },
+  "expectedMoveModel": {
+    "note": "Causal expected favourable movement = atrNorm * sqrt(horizonHours). Fixed before measurement; not fitted.",
+    "scaling": "sqrt",
+    "multiplier": 1.0
+  },
+  "strategyGeometry": {
+    "alpha_breakout": { "baseLev": 12, "stopPct": 0.05, "targetPct": 0.08 },
+    "bench_donchian": { "baseLev": 12, "stopPct": 0.05, "targetPct": 0.08 }
+  },
+  "qualityScore": {
+    "components": ["trendAlignment", "breakoutQuality", "volExpansion", "mtfAgreement", "costCoverage"],
+    "weights": { "trendAlignment": 0.25, "breakoutQuality": 0.25, "volExpansion": 0.15, "mtfAgreement": 0.2, "costCoverage": 0.15 },
+    "takeThreshold": 0.55,
+    "costCoverageFloor": 0.2,
+    "note": "Deterministic, causal, untrained. Every component is a closed-form function of pre-trade features."
+  },
+  "benchmarkDonchian": {
+    "id": "bench_donchian",
+    "name": "Frozen production Donchian re-expressed at hourly resolution",
+    "lookbackHours": 480,
+    "dailySmaN": 200,
+    "dailyDecisionCadence": "one candidate per symbol per UTC day (the first hourly bar of the day on which the condition holds), mirroring the daily-panel decision cadence used in production",
+    "note": "Faithful re-expression of the frozen donchian rule at the same temporal scale (20 trading days = 480 hourly bars, 200-day daily trend filter) evaluated on the hourly research panel so that it can be measured with identical cost and horizon machinery."
+  },
+  "costStress": { "multiplier": 1.25, "label": "+25% fee/slippage" },
+  "selectionProtocol": {
+    "selectOn": ["train", "validation"],
+    "rule": "A candidate alpha signal family is selected only if (a) TRAIN net edge > 0, (b) VALIDATION net edge > 0, (c) TRAIN and VALIDATION sample sizes pass, (d) no single symbol supplies more than the profit-share cap. Ties are broken by the pre-registered signal order in this file. TEST never participates in selection.",
+    "testEvaluationCount": 1
+  },
+  "alphaQualityGates": {
+    "minResolvedTrain": 300,
+    "minResolvedValidation": 150,
+    "minResolvedTest": 150,
+    "minResolvedPerMarket": 60,
+    "minResolvedPerSymbol": 15,
+    "requireRawEdgePositive": true,
+    "minGrossR": 0.0,
+    "minNetRValidation": 0.0,
+    "minNetRTest": 0.0,
+    "minMoveCostRatio": 3.0,
+    "minPositiveSubFolds": 3,
+    "maxSymbolProfitShare": 0.5,
+    "maxPeriodProfitShare": 0.5,
+    "requireCostStressPositive": true,
+    "requireNextBarEntryPositive": true
+  }
+}
