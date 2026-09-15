@@ -127,6 +127,13 @@ jobs:
               pm2 delete fabinvests fabinvests-engine fabinvests-web 2>/dev/null || true
               sleep 2
 
+              # If PM2 daemon has desynchronized state or corrupted internal entries, reset daemon
+              if ! pm2 ping >/dev/null 2>&1; then
+                echo "PM2 daemon not responding, resetting daemon..."
+                pm2 kill || true
+                sleep 2
+              fi
+
               # Clean up stale lockfile if holding PID is no longer alive
               node -e "
                 const fs = require('fs');
@@ -143,7 +150,12 @@ jobs:
                 }
               " || true
 
-              pm2 start deploy/ecosystem.config.cjs
+              pm2 start deploy/ecosystem.config.cjs || {
+                echo "PM2 start encountered an error; resetting daemon and retrying..."
+                pm2 kill || true
+                sleep 2
+                pm2 start deploy/ecosystem.config.cjs
+              }
               pm2 save
 
               # 8. Check systemd PM2 service status
