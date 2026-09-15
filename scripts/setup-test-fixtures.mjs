@@ -80,3 +80,28 @@ if (!fs.existsSync(hourPanelPath)) {
   }
 }
 
+// 7. Ensure frozen baseline inputs match pre-registered research hashes (cross-platform EOL normalization)
+try {
+  const crypto = await import("node:crypto");
+  const p11SpecPath = path.join(ROOT, "config", "phase11-spec.v1.json");
+  if (fs.existsSync(p11SpecPath)) {
+    const spec = JSON.parse(fs.readFileSync(p11SpecPath, "utf8"));
+    for (const [rel, expected] of Object.entries(spec.frozenBaseline?.inputs || {})) {
+      const p = path.join(ROOT, rel);
+      if (!fs.existsSync(p)) continue;
+      const raw = fs.readFileSync(p, "utf8");
+      const h = crypto.createHash("sha256").update(raw).digest("hex");
+      if (h !== expected) {
+        const asLF = raw.replace(/\r\n/g, "\n");
+        if (crypto.createHash("sha256").update(asLF).digest("hex") === expected) {
+          fs.writeFileSync(p, asLF, "utf8");
+        } else {
+          const asCRLF = asLF.replace(/\n/g, "\r\n");
+          if (crypto.createHash("sha256").update(asCRLF).digest("hex") === expected) {
+            fs.writeFileSync(p, asCRLF, "utf8");
+          }
+        }
+      }
+    }
+  }
+} catch { /* ignore */ }

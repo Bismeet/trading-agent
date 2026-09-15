@@ -100,6 +100,7 @@ jobs:
 
               echo "== Checking out target commit $TARGET_COMMIT =="
               git checkout -f "$TARGET_COMMIT"
+              git checkout-index --force --all
 
               # 4. Install root dependencies reproducibly
               echo "== Installing root dependencies (npm ci) =="
