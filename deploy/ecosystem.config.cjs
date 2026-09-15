@@ -19,6 +19,8 @@ module.exports = {
       args: "start -p 3002",
       cwd: __dirname + "/../web",
       autorestart: true,
+      max_restarts: 50,
+      restart_delay: 3000,
       time: true,
       out_file: "../data/pm2-web.out.log",
       error_file: "../data/pm2-web.err.log",

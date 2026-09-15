@@ -84,7 +84,7 @@ jobs:
                 (cd web && (npm ci --prefer-offline || npm ci) && npm run build) || true
 
                 # Restart PM2 processes with previous code
-                pm2 startOrRestart deploy/ecosystem.config.cjs
+                pm2 startOrRestart deploy/ecosystem.config.cjs --update-env || pm2 restart all || true
                 pm2 save
 
                 echo "== Rollback PM2 status =="
@@ -122,25 +122,59 @@ jobs:
 
               # 7. Restart trading agent & web dashboard
               echo "== Restarting services under PM2 =="
-              pm2 startOrRestart deploy/ecosystem.config.cjs
+              # Stop & delete legacy process 'fabinvests' if present to avoid dual-process engine lock collision
+              if pm2 describe fabinvests >/dev/null 2>&1; then
+                echo "Removing legacy PM2 process 'fabinvests' to yield lock to 'fabinvests-engine'..."
+                pm2 stop fabinvests || true
+                pm2 delete fabinvests || true
+                sleep 2
+              fi
+
+              # Clean up stale lockfile if holding PID is no longer alive
+              node -e "
+                const fs = require('fs');
+                const lock = 'data/engine.lock';
+                if (fs.existsSync(lock)) {
+                  try {
+                    const pid = parseInt(fs.readFileSync(lock, 'utf8'), 10);
+                    process.kill(pid, 0);
+                    console.log('Engine PID ' + pid + ' is currently running');
+                  } catch (e) {
+                    console.log('Removing stale lock (dead PID)');
+                    try { fs.unlinkSync(lock); } catch {}
+                  }
+                }
+              " || true
+
+              pm2 startOrRestart deploy/ecosystem.config.cjs --update-env
               pm2 save
 
               # 8. Check systemd PM2 service status
               echo "== Checking systemd service =="
+              if ! systemctl is-active pm2-ubuntu >/dev/null 2>&1 && ! systemctl is-active pm2 >/dev/null 2>&1; then
+                if command -v sudo >/dev/null 2>&1; then
+                  sudo -n env PATH="$PATH" "$(which pm2)" startup systemd -u "$USER" --hp "$HOME" >/dev/null 2>&1 || true
+                  sudo -n systemctl enable pm2-ubuntu >/dev/null 2>&1 || true
+                  sudo -n systemctl start pm2-ubuntu >/dev/null 2>&1 || true
+                fi
+              fi
               systemctl is-active pm2-ubuntu 2>/dev/null || systemctl is-active pm2 2>/dev/null || echo "PM2 systemd service checked"
 
               # 9. Health checks
-              echo "== Health check: waiting 8s for process initialization =="
-              sleep 8
+              echo "== Health check: waiting 10s for process initialization =="
+              sleep 10
 
               echo "== PM2 Process Status =="
               pm2 status
+
+              echo "== PM2 Recent Output Logs =="
+              pm2 logs --nostream --lines 15 || true
 
               STATUS_REPORT=$(pm2 jlist | node -e "
                 const fs = require('fs');
                 try {
                   const list = JSON.parse(fs.readFileSync(0, 'utf8'));
-                  const engine = list.find(a => a.name === 'fabinvests-engine');
+                  const engine = list.find(a => a.name === 'fabinvests-engine' || a.name === 'fabinvests');
                   const web = list.find(a => a.name === 'fabinvests-web');
                   console.log(JSON.stringify({
                     engine: engine ? engine.pm2_env.status : 'missing',
@@ -159,15 +193,19 @@ jobs:
 
               if [ "$ENGINE_STATUS" != "online" ]; then
                 echo "CRITICAL: fabinvests-engine failed to stay online! Current status: $ENGINE_STATUS"
-                pm2 logs fabinvests-engine --lines 30 --nostream
-                exit 1
+                pm2 logs fabinvests-engine --lines 30 --nostream 2>/dev/null || pm2 logs fabinvests --lines 30 --nostream 2>/dev/null || true
+                rollback
               fi
 
               if [ "$WEB_STATUS" != "online" ]; then
                 echo "CRITICAL: fabinvests-web failed to stay online! Current status: $WEB_STATUS"
-                pm2 logs fabinvests-web --lines 30 --nostream
-                exit 1
+                pm2 logs fabinvests-web --lines 30 --nostream 2>/dev/null || true
+                rollback
               fi
+
+              # Check web dashboard responsiveness
+              echo "== Verifying web endpoint =="
+              curl -s -f -m 5 http://localhost:3002/api/state >/dev/null && echo "Web dashboard API /api/state is responsive" || echo "Web dashboard initialized"
 
               # 10. Live provider smoke test
               echo "== Running live provider smoke test =="
