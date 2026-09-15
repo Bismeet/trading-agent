@@ -1,0 +1,10 @@
+* text=auto
+
+# Frozen baseline inputs with explicit line endings to match pre-registered research hashes
+config.json eol=crlf
+config/final.control.json eol=lf
+config/management.control.json eol=lf
+config/final-experiment-spec.v1.json eol=lf
+config/alpha-experiment-spec.v1.json eol=crlf
+config/strategies.control.json eol=crlf
+config/phase10-spec.v1.json eol=crlf

@@ -7,6 +7,6 @@
     "init": "node scripts/init.mjs",
     "cycle": "node scripts/daemon.mjs --once",
     "daemon": "node scripts/daemon.mjs",
-    "test": "node --test tests/"
+    "test": "node scripts/setup-test-fixtures.mjs && node --test \"tests/*.test.mjs\""
   }
 }

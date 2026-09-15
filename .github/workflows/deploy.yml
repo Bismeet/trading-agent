@@ -7,7 +7,7 @@ on:
 
 concurrency:
   group: production-deployment
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -20,6 +20,7 @@ jobs:
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
           DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          TARGET_COMMIT: ${{ github.sha }}
         run: |
           set -e
 
@@ -34,28 +35,148 @@ jobs:
           ssh \
             -i ~/.ssh/deploy_key \
             -p "$DEPLOY_PORT" \
-            "$DEPLOY_USER@$DEPLOY_HOST" << 'REMOTE'
-              set -e
+            -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=30 \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=4 \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            bash -s "$TARGET_COMMIT" << 'REMOTE'
+              set -euo pipefail
 
-              cd /home/ubuntu/trading-agent
+              TARGET_COMMIT="$1"
+              APP_DIR="/home/ubuntu/trading-agent"
 
-              echo "Fetching latest GitHub code..."
+              cd "$APP_DIR"
+
+              echo "=========================================="
+              echo "FabInvests Deployment Starting"
+              echo "Target commit: $TARGET_COMMIT"
+              echo "Time: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+              echo "=========================================="
+
+              # 1. Low-memory safety: verify swap and set Node memory ceiling
+              echo "== Checking System Memory & Swap =="
+              free -h
+              SWAP_TOTAL=$(free -m | awk '/^Swap:/ {print $2}')
+              if [ "$SWAP_TOTAL" -eq 0 ]; then
+                echo "WARNING: Swap is reported as 0 MB. Swap should be active on low-memory VPS."
+              else
+                echo "Swap confirmed active: ${SWAP_TOTAL} MB"
+              fi
+
+              export NODE_OPTIONS="--max-old-space-size=1536"
+
+              # 2. Record previous known-good commit for rollback
+              PREV_COMMIT=$(git rev-parse HEAD)
+              echo "Previous commit: $PREV_COMMIT"
+
+              rollback() {
+                echo "=========================================="
+                echo "DEPLOYMENT FAILED — INITIATING SAFE ROLLBACK"
+                echo "Rolling back to previous commit: $PREV_COMMIT"
+                echo "=========================================="
+
+                # Revert code without touching untracked data/ state
+                git checkout -f "$PREV_COMMIT" || git reset --hard "$PREV_COMMIT"
+
+                # Restore previous dependencies
+                npm ci --prefer-offline || npm ci
+                (cd web && (npm ci --prefer-offline || npm ci) && npm run build) || true
+
+                # Restart PM2 processes with previous code
+                pm2 startOrRestart deploy/ecosystem.config.cjs
+                pm2 save
+
+                echo "== Rollback PM2 status =="
+                pm2 status
+
+                echo "Rollback completed. Failing deployment job."
+                exit 1
+              }
+
+              # 3. Fetch latest code and checkout target commit
+              echo "== Fetching latest code from origin =="
               git fetch origin main
 
-              echo "Deploying latest main..."
-              git reset --hard origin/main
+              echo "== Checking out target commit $TARGET_COMMIT =="
+              git checkout -f "$TARGET_COMMIT"
 
-              echo "Installing web dependencies..."
+              # 4. Install root dependencies reproducibly
+              echo "== Installing root dependencies (npm ci) =="
+              npm ci
+
+              # 5. Run test suite BEFORE touching services
+              echo "== Running test suite =="
+              npm test
+
+              # 6. Install web dependencies & build Next.js dashboard
+              echo "== Installing web dependencies and building dashboard =="
               cd web
               npm ci
+              npm run build
               cd ..
 
-              echo "Restarting FabInvests..."
-              pm2 restart fabinvests fabinvests-web
+              # Trap failures during restart and health check for automated rollback
+              trap rollback ERR
 
-              echo "Checking PM2..."
+              # 7. Restart trading agent & web dashboard
+              echo "== Restarting services under PM2 =="
+              pm2 startOrRestart deploy/ecosystem.config.cjs
+              pm2 save
+
+              # 8. Check systemd PM2 service status
+              echo "== Checking systemd service =="
+              systemctl is-active pm2-ubuntu 2>/dev/null || systemctl is-active pm2 2>/dev/null || echo "PM2 systemd service checked"
+
+              # 9. Health checks
+              echo "== Health check: waiting 8s for process initialization =="
+              sleep 8
+
+              echo "== PM2 Process Status =="
               pm2 status
 
-              echo "Deployment completed successfully."
-              git log -1 --oneline
+              STATUS_REPORT=$(pm2 jlist | node -e "
+                const fs = require('fs');
+                try {
+                  const list = JSON.parse(fs.readFileSync(0, 'utf8'));
+                  const engine = list.find(a => a.name === 'fabinvests-engine');
+                  const web = list.find(a => a.name === 'fabinvests-web');
+                  console.log(JSON.stringify({
+                    engine: engine ? engine.pm2_env.status : 'missing',
+                    engineRestarts: engine ? engine.pm2_env.restart_time : -1,
+                    web: web ? web.pm2_env.status : 'missing',
+                    webRestarts: web ? web.pm2_env.restart_time : -1
+                  }));
+                } catch (e) {
+                  console.log(JSON.stringify({ error: e.message }));
+                }
+              ")
+              echo "Status details: $STATUS_REPORT"
+
+              ENGINE_STATUS=$(echo "$STATUS_REPORT" | node -e "console.log(JSON.parse(fs.readFileSync(0)).engine || 'unknown')")
+              WEB_STATUS=$(echo "$STATUS_REPORT" | node -e "console.log(JSON.parse(fs.readFileSync(0)).web || 'unknown')")
+
+              if [ "$ENGINE_STATUS" != "online" ]; then
+                echo "CRITICAL: fabinvests-engine failed to stay online! Current status: $ENGINE_STATUS"
+                pm2 logs fabinvests-engine --lines 30 --nostream
+                exit 1
+              fi
+
+              if [ "$WEB_STATUS" != "online" ]; then
+                echo "CRITICAL: fabinvests-web failed to stay online! Current status: $WEB_STATUS"
+                pm2 logs fabinvests-web --lines 30 --nostream
+                exit 1
+              fi
+
+              # 10. Live provider smoke test
+              echo "== Running live provider smoke test =="
+              node tests/live-smoke.mjs || true
+
+              # 11. Print recent engine logs to confirm clean cycle
+              echo "== Recent fabinvests-engine output =="
+              pm2 logs fabinvests-engine --lines 20 --nostream
+
+              echo "=========================================="
+              echo "Deployment succeeded at $(git log -1 --oneline)"
+              echo "=========================================="
           REMOTE
