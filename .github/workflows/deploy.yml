@@ -84,7 +84,8 @@ jobs:
                 (cd web && (npm ci --prefer-offline || npm ci) && npm run build) || true
 
                 # Restart PM2 processes with previous code
-                pm2 startOrRestart deploy/ecosystem.config.cjs --update-env || pm2 restart all || true
+                pm2 delete fabinvests-engine fabinvests-web 2>/dev/null || true
+                pm2 start deploy/ecosystem.config.cjs || pm2 restart all || true
                 pm2 save
 
                 echo "== Rollback PM2 status =="
@@ -122,13 +123,9 @@ jobs:
 
               # 7. Restart trading agent & web dashboard
               echo "== Restarting services under PM2 =="
-              # Stop & delete legacy process 'fabinvests' if present to avoid dual-process engine lock collision
-              if pm2 describe fabinvests >/dev/null 2>&1; then
-                echo "Removing legacy PM2 process 'fabinvests' to yield lock to 'fabinvests-engine'..."
-                pm2 stop fabinvests || true
-                pm2 delete fabinvests || true
-                sleep 2
-              fi
+              # Cleanly remove old/legacy processes to avoid lock collisions and pick up fresh config/env
+              pm2 delete fabinvests fabinvests-engine fabinvests-web 2>/dev/null || true
+              sleep 2
 
               # Clean up stale lockfile if holding PID is no longer alive
               node -e "
@@ -146,7 +143,7 @@ jobs:
                 }
               " || true
 
-              pm2 startOrRestart deploy/ecosystem.config.cjs --update-env
+              pm2 start deploy/ecosystem.config.cjs
               pm2 save
 
               # 8. Check systemd PM2 service status

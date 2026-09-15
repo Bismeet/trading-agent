@@ -16,7 +16,11 @@ module.exports = {
     {
       name: "fabinvests-web",
       script: "node_modules/next/dist/bin/next",
-      args: "start -p 3002",
+      args: "start --port 3002",
+      env: {
+        PORT: "3002",
+        NODE_ENV: "production",
+      },
       cwd: __dirname + "/../web",
       autorestart: true,
       max_restarts: 50,
