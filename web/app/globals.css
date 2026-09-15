@@ -1,23 +1,54 @@
 @import "tailwindcss";
 
+/* ============================================================================
+   FABINVESTS TERMINAL — RETRO 1980s CRT THEME
+   ----------------------------------------------------------------------------
+   Design intent: a trading terminal a 1987 quant would have built if they had
+   somehow gotten hold of today's data feed. Phosphor green on black, chunky
+   double-line panel borders, scanlines, blinking lamps, blocky buttons.
+   Deliberately NOT "modern dashboard + green filter".
+   ========================================================================= */
+
 @theme {
-  --color-cream: #fff7f0;
-  --color-cream2: #fdeee3;
-  --color-sakura: #ff9eaa;
-  --color-sakurasoft: #ffd2d9;
-  --color-lav: #807ea8;
-  --color-lavsoft: #cdcaeb;
-  --color-gold: #e3c16f;
-  --color-ink: #562135;
-  --color-inksoft: #8a5a68;
-  --color-up: #1f9d62;
-  --color-down: #e5566f;
-  --color-downink: #c0354f;
-  --color-upink: #157a4a;
-  --font-display: "Fraunces", "Times New Roman", serif;
-  --font-jp: "Zen Maru Gothic", sans-serif;
-  --font-body: "M PLUS Rounded 1c", ui-rounded, sans-serif;
+  /* --- phosphor palette --- */
+  --color-phos: #33ff66;          /* primary phosphor green */
+  --color-phosdim: #1f9c3f;       /* dim phosphor */
+  --color-phosdeep: #0f5c25;      /* deep phosphor (borders, rules) */
+  --color-amber: #ffb000;         /* amber CRT warning */
+  --color-amberdim: #b37a00;
+  --color-alert: #ff4444;         /* red alert */
+  --color-alertdim: #a02020;
+  --color-cyan: #33ddff;          /* cyan accent */
+  --color-mag: #ff55dd;           /* magenta accent (arcade) */
+  --color-term: #050a06;          /* terminal background */
+  --color-term2: #08120a;         /* raised terminal panel */
+  --color-term3: #0c1a10;         /* inset terminal well */
+  --color-grid: #123a1c;          /* grid / rule lines */
+  --color-ink: #d8ffe2;           /* primary text */
+  --color-inksoft: #6fbf85;       /* secondary text */
+  --color-inksofter: #3f7a52;     /* tertiary text */
+
+  /* --- compat aliases: keep existing class names working --- */
+  --color-cream: #050a06;
+  --color-cream2: #08120a;
+  --color-sakura: #33ff66;
+  --color-sakurasoft: #1f9c3f;
+  --color-lav: #33ddff;
+  --color-lavsoft: #1a7f99;
+  --color-gold: #ffb000;
+  --color-up: #33ff66;
+  --color-down: #ff4444;
+  --color-downink: #ff6b6b;
+  --color-upink: #4dff88;
+
+  /* --- typography: pixel/monospace only. No serifs. --- */
+  --font-display: "VT323", "Courier New", monospace;
+  --font-body: "IBM Plex Mono", "Courier New", monospace;
+  --font-jp: "IBM Plex Mono", "Courier New", monospace;
+  --font-term: "IBM Plex Mono", "Courier New", monospace;
 }
+
+/* ---------------------------------------------------------------- base --- */
 
 html, body {
   padding: 0;
@@ -27,92 +58,315 @@ html, body {
 body {
   font-family: var(--font-body);
   color: var(--color-ink);
-  background: #fbeee6;
-  -webkit-font-smoothing: antialiased;
+  background: var(--color-term);
+  letter-spacing: 0.02em;
+  -webkit-font-smoothing: none;
+  font-smooth: never;
   min-height: 100vh;
   overflow-x: hidden;
+  text-shadow: 0 0 2px rgba(51, 255, 102, 0.35);
 }
 
-.sky {
+/* subtle dot-matrix grid floor */
+.term-bg {
   position: fixed;
   inset: 0;
-  z-index: -2;
-  background:
-    radial-gradient(120% 80% at 78% 8%, #ffe7c4 0%, rgba(255, 231, 196, 0) 42%),
-    radial-gradient(90% 70% at 20% 0%, #ffd9e0 0%, rgba(255, 217, 224, 0) 45%),
-    linear-gradient(180deg, #fef0e6 0%, #fbe5e6 38%, #efe6f3 72%, #e7e3f1 100%);
+  z-index: -3;
+  background-color: #050a06;
+  background-image:
+    radial-gradient(ellipse 90% 70% at 50% 40%, rgba(20, 70, 34, 0.55) 0%, rgba(5, 10, 6, 0) 70%),
+    linear-gradient(rgba(18, 58, 28, 0.30) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(18, 58, 28, 0.30) 1px, transparent 1px);
+  background-size: 100% 100%, 44px 44px, 44px 44px;
 }
 
-.sun {
+/* CRT scanlines + vignette + faint flicker. Purely decorative, pointer-safe. */
+.crt-overlay {
   position: fixed;
-  top: 6%;
-  right: 12%;
-  width: 190px;
-  height: 190px;
-  z-index: -2;
-  border-radius: 9999px;
-  background: radial-gradient(circle, #ffe9b8 0%, #ffd1a6 45%, rgba(255, 209, 166, 0) 72%);
-  filter: blur(2px);
-  opacity: 0.85;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0) 0px,
+      rgba(0, 0, 0, 0) 2px,
+      rgba(0, 0, 0, 0.16) 3px,
+      rgba(0, 0, 0, 0.16) 4px
+    ),
+    radial-gradient(ellipse 120% 100% at 50% 50%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.55) 100%);
 }
 
+/* rolling bright scan bar */
+.crt-sweep {
+  position: fixed;
+  left: 0;
+  right: 0;
+  height: 90px;
+  z-index: 101;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(51,255,102,0) 0%, rgba(51,255,102,0.045) 50%, rgba(51,255,102,0) 100%);
+  animation: sweep 7s linear infinite;
+}
+
+@keyframes sweep {
+  0%   { top: -12%; }
+  100% { top: 112%; }
+}
+
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  92% { opacity: 1; }
+  93% { opacity: 0.86; }
+  94% { opacity: 1; }
+  97% { opacity: 0.93; }
+  98% { opacity: 1; }
+}
+.crt-flicker { animation: flicker 9s infinite; }
+
+/* ------------------------------------------------------------- panels --- */
+
+/* chunky double-line terminal panel */
 .card {
-  background: rgba(255, 252, 249, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  border-radius: 24px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 18px 40px -16px rgba(123, 74, 90, 0.32), 0 2px 8px -4px rgba(123, 74, 90, 0.15);
+  background: linear-gradient(180deg, rgba(8, 18, 10, 0.94) 0%, rgba(5, 12, 7, 0.96) 100%);
+  border: 2px solid var(--color-phosdeep);
+  border-radius: 0;
+  box-shadow:
+    inset 0 0 0 1px rgba(51, 255, 102, 0.10),
+    0 0 0 1px rgba(0, 0, 0, 0.8),
+    0 0 22px -8px rgba(51, 255, 102, 0.35);
+  backdrop-filter: none;
 }
 
 .card-quiet {
-  background: rgba(255, 252, 249, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  border-radius: 24px;
+  background: rgba(8, 18, 10, 0.6);
+  border: 1px dashed #1d5c31;
+  border-radius: 0;
 }
 
-.pill {
-  border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.7);
+/* inset lit well (for readouts) */
+.well {
+  background: #041008;
+  border: 1px solid #1d5c31;
+  box-shadow: inset 0 0 14px rgba(51, 255, 102, 0.09), inset 0 1px 0 rgba(0,0,0,0.9);
+  border-radius: 0;
 }
+
+/* classic terminal title bar */
+.titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background: var(--color-phosdeep);
+  color: #041008;
+  font-family: var(--font-term);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-shadow: none;
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
+.titlebar-dark {
+  background: #0d2a15;
+  color: var(--color-phos);
+  border-bottom: 1px solid var(--color-phosdeep);
+}
+
+/* ------------------------------------------------------------ buttons --- */
+
+.pill {
+  border-radius: 0;
+  background: #0d2a15;
+  border: 2px solid var(--color-phosdeep);
+  color: var(--color-ink);
+  font-family: var(--font-term);
+  box-shadow: 2px 2px 0 0 #030703;
+}
+.pill:hover:not(:disabled) {
+  background: #14401f;
+  border-color: var(--color-phos);
+  box-shadow: 2px 2px 0 0 #030703, 0 0 12px -2px rgba(51,255,102,0.6);
+}
+.pill:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 0 #030703;
+}
+.pill:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-amber { background: #3a2600; border-color: #6b4700; color: var(--color-amber); }
+.btn-amber:hover:not(:disabled) { border-color: var(--color-amber); }
+.btn-alert { background: #3a0d0d; border-color: #6b1a1a; color: var(--color-alert); }
+.btn-alert:hover:not(:disabled) { border-color: var(--color-alert); }
+
+input, select, textarea {
+  font-family: var(--font-term);
+  background: #041008 !important;
+  border: 2px solid var(--color-phosdeep) !important;
+  border-radius: 0 !important;
+  color: var(--color-phos) !important;
+  text-shadow: 0 0 3px rgba(51,255,102,0.5);
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--color-phos) !important;
+  box-shadow: 0 0 10px -2px rgba(51,255,102,0.7);
+}
+
+/* ------------------------------------------------------------ typography --- */
 
 .font-display { font-family: var(--font-display); }
 .font-jp { font-family: var(--font-jp); }
+.font-term { font-family: var(--font-term); }
 .tnum { font-variant-numeric: tabular-nums; }
 
-.petal {
+/* big readout digits */
+.readout {
+  font-family: var(--font-display);
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 8px currentColor, 0 0 2px currentColor;
+  line-height: 1;
+}
+
+.label {
+  font-family: var(--font-term);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-inksoft);
+}
+
+/* --------------------------------------------------------------- lamps --- */
+
+.lamp {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 1px solid #030703;
+  box-shadow: 0 0 8px currentColor, inset 0 0 4px rgba(255,255,255,0.4);
+}
+.lamp-on   { background: currentColor; }
+.lamp-off  { background: #14251a; box-shadow: none; }
+
+.blink { animation: blink 1.1s step-end infinite; }
+@keyframes blink {
+  0%, 49%   { opacity: 1; }
+  50%, 100% { opacity: 0.15; }
+}
+
+.blink-slow { animation: blink 2.4s step-end infinite; }
+
+.cursor::after {
+  content: "\2588";
+  animation: blink 1s step-end infinite;
+  margin-left: 2px;
+}
+
+/* ------------------------------------------------------------ datastream --- */
+
+.datastream {
   position: fixed;
-  top: -8%;
+  inset: 0;
   z-index: -1;
-  width: 14px;
-  height: 14px;
-  background: radial-gradient(circle at 30% 30%, #ffd6dd, #ff9eaa);
-  border-radius: 12px 1px 12px 1px;
-  opacity: 0;
   pointer-events: none;
-  animation: fall linear infinite;
+  overflow: hidden;
+  font-family: var(--font-term);
+  font-size: 11px;
+  color: #0f5c25;
+  opacity: 0.55;
+  white-space: pre;
+  line-height: 1.25;
 }
 
-@keyframes fall {
-  0% { transform: translateY(-10vh) translateX(0) rotate(0deg); opacity: 0; }
-  10% { opacity: 0.9; }
-  90% { opacity: 0.8; }
-  100% { transform: translateY(112vh) translateX(60px) rotate(320deg); opacity: 0; }
+/* CRT boot door */
+.boot-screen {
+  font-family: var(--font-term);
+  color: var(--color-phos);
 }
 
-@keyframes floaty {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
-}
-.floaty { animation: floaty 4s ease-in-out infinite; }
+/* ----------------------------------------------------- retro scrollbar --- */
 
-@keyframes pulsering {
-  0% { box-shadow: 0 0 0 0 rgba(31, 157, 98, 0.45); }
-  70% { box-shadow: 0 0 0 10px rgba(31, 157, 98, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(31, 157, 98, 0); }
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track { background: #041008; border: 1px solid #123a1c; }
+::-webkit-scrollbar-thumb {
+  background: var(--color-phosdeep);
+  border: 1px solid #1f9c3f;
 }
-.live-dot { animation: pulsering 2.2s infinite; }
+::-webkit-scrollbar-thumb:hover { background: #1f9c3f; }
 
-::-webkit-scrollbar { width: 9px; height: 9px; }
-::-webkit-scrollbar-thumb { background: rgba(192, 158, 170, 0.4); border-radius: 9999px; }
-::-webkit-scrollbar-track { background: transparent; }
+/* --------------------------------------------------------- retro table --- */
+
+.term-table { width: 100%; border-collapse: collapse; }
+.term-table th {
+  font-family: var(--font-term);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-inksoft);
+  text-align: left;
+  border-bottom: 1px solid var(--color-grid);
+  padding: 4px 6px;
+}
+.term-table td {
+  border-bottom: 1px dotted #123a1c;
+  padding: 5px 6px;
+  font-size: 12px;
+}
+
+/* ------------------------------------------------------------- effects --- */
+
+.glow-phos { text-shadow: 0 0 8px rgba(51,255,102,0.8), 0 0 2px rgba(51,255,102,0.9); }
+.glow-amber { text-shadow: 0 0 8px rgba(255,176,0,0.8), 0 0 2px rgba(255,176,0,0.9); }
+.glow-alert { text-shadow: 0 0 8px rgba(255,68,68,0.8), 0 0 2px rgba(255,68,68,0.9); }
+
+/* arcade-style segmented bar */
+.seg-bar { display: flex; gap: 2px; }
+.seg { flex: 1; height: 100%; background: #12291a; border: 1px solid #030703; }
+.seg.on { background: currentColor; box-shadow: 0 0 6px currentColor; }
+
+/* marquee ticker */
+.marquee {
+  overflow: hidden;
+  white-space: nowrap;
+  border-top: 1px solid var(--color-phosdeep);
+  border-bottom: 1px solid var(--color-phosdeep);
+  background: #06130a;
+}
+.marquee > span {
+  display: inline-block;
+  padding-left: 100%;
+  animation: marquee 42s linear infinite;
+}
+@keyframes marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
+}
+
+/* ------------------------------------------------------- accessibility --- */
+
+/* Users who prefer reduced motion get a static, calm terminal. */
+@media (prefers-reduced-motion: reduce) {
+  .crt-sweep,
+  .crt-flicker,
+  .blink,
+  .blink-slow,
+  .cursor::after,
+  .marquee > span {
+    animation: none !important;
+  }
+  .crt-sweep { display: none; }
+  .cursor::after { opacity: 1; }
+  .marquee > span { padding-left: 0; }
+}
+
+/* Explicit opt-out hook (settings toggle). */
+.no-crt .crt-sweep,
+.no-crt .crt-overlay,
+.no-crt .blink,
+.no-crt .blink-slow {
+  animation: none !important;
+  display: none !important;
+}
+.no-crt .cursor::after { animation: none !important; }

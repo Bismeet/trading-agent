@@ -8,3 +8,13 @@ data/
 # phase 3 sandboxes / test data
 tmp-test-data/
 tmp-live-probe/
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# local agent / editor state (not part of the project)
+.workbuddy-ai/
+
+# OS noise
+.DS_Store
+Thumbs.db

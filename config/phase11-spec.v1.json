@@ -1,0 +1,270 @@
+{
+  "version": "1.0.0",
+  "phase": "phase11-cross-sectional-rotation",
+  "status": "PRE-REGISTERED — IMMUTABLE",
+  "preregisteredAt": "before any TEST outcome was read",
+  "note": "Pre-registered protocol for PHASE 11. Hypothesis under test: cross-asset RELATIVE strength contains information that the existing per-symbol directional strategies do not capture, particularly when combined with a long-horizon absolute trend filter and LOW turnover. The experiment is the deliverable; the strategy is only the instrument. Every parameter below was fixed BEFORE any measurement. The runner reads this file and may NEVER invent, tune or relax a threshold in code, and may NEVER add a gate after TEST is read.",
+
+  "criticalRule": "Do NOT force a positive result. If the strategy loses money, say it loses money. If relative strength adds no value over the absolute-trend-only baseline B2, say so. If costs destroy the edge, say so. If the test is statistically weak, say so. If the negative control fails, INVALIDATE the experiment. Do not begin another optimization cycle after a failure.",
+  "deploymentRule": "Phase 11 is an OFFLINE RESEARCH MODULE. It must never be wired into live trading, production sizing, production risk limits, the learner, the dashboard, or any production configuration. Verdict A is not a deployment authorisation; deployment would require a separate phase.",
+
+  "frozenBaseline": {
+    "note": "The production strategy/risk configuration is FROZEN for this phase. The runner hashes every file below at the START and at the END of the run and aborts (verdict D conditions) if anything changed. Production files are read-only inputs here; nothing in the Phase 11 pipeline writes to config/ or to any production data file.",
+    "inputs": {
+      "config.json": "05c52fabe110639f96f6438a621c655352ebcc9bc19748a4c0559d436762b313",
+      "config/final.control.json": "30f5d8473affcfc56f128c34d89a6f2f2332f1a49165b0f73f53f90293df0c76",
+      "config/management.control.json": "c18de8f560d1637074586c5431dbd1ef76a4cd5ca6f9f449b386bfa0726be219",
+      "config/final-experiment-spec.v1.json": "4274e685b2e9db9237d31337b9c6b4b04b7c577d25cb519bd37e7d9a23c59c26",
+      "config/alpha-experiment-spec.v1.json": "808296d1236d8e28387743744ad6d0e4fe4ae3bcce6d97c2cd7c6a9dcf2d8aac",
+      "config/strategies.control.json": "8f3df1af5d878233d5d444b090a134ce9fc09742c89eff039dbf62328d03bcb0",
+      "config/phase10-spec.v1.json": "782a04f6e8033ab67f13d7575fdf91aed3842c48a20a03c3a3f8fce618ffb1ea"
+    }
+  },
+
+  "data": {
+    "researchPanel": "daily",
+    "researchInterval": "1d",
+    "researchRange": "5y",
+    "panelPath": "data/calibration/history.daily.v2.json",
+    "panelSource": "Yahoo Finance chart API (same provider/endpoint as the live engine)",
+    "gridNote": "The panel is a UNION of all symbol timestamps. Equities carry only their exchange sessions; crypto carries every calendar day. Alignment is index-based with CarryForwardLookup (as-of, never forward). When an equity lacks an observation on a grid date the last available observation is carried; when an entire symbol has no observation on or before a grid date it is not yet eligible. This is the only mechanism by which a symbol can be absent from a decision bar.",
+    "barMs": 86400000,
+    "evaluationWindow": "the FULL panel — every strategy, arm and control is evaluated on the identical grid and the identical date range, so all comparisons are like-for-like"
+  },
+
+  "universe": {
+    "count": 14,
+    "symbols": ["BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD", "DOGE-USD", "AAPL", "NVDA", "MSFT", "TSLA", "AMZN", "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS"],
+    "markets": { "crypto": 5, "us": 5, "india": 4 },
+    "rule": "EXACTLY these 14 assets from the existing daily panel. No asset is added, removed or replaced. No symbol substitution, no index proxy, no synthetic asset.",
+    "survivorshipDisclosure": "THE PANEL IS NOT SURVIVORSHIP-BIAS-FREE. These 14 symbols are CURRENT large-caps / majors selected with today's knowledge of which assets still exist and are liquid. Assets that were delisted, merged, denylisted or collapsed out of the universe between 2021-09 and 2026-09 are absent. This biases any long-only result UPWARD and must be reported prominently in every summary, table caption and the final report. The bias cannot be corrected offline because no delisted-asset price history exists in this repository, and the universe is deliberately NOT swapped for a different dataset to make the numbers look better."
+  },
+
+  "decision": {
+    "frequency": "weekly",
+    "rebalanceEveryTradingDays": 5,
+    "weekAnchorSymbol": "BTC-USD",
+    "weekAnchorNote": "Weeks are 5-grid-date blocks of the union grid, anchored at grid index 0. The anchor symbol is named explicitly so the week numbering is fully determined and reproducible; it is a calendar device only and grants BTC-USD no informational advantage (crypto trades all seven days, so its index set is the densest available).",
+    "primaryHoldingDays": 5,
+    "robustnessHoldingDays": 10,
+    "robustnessHoldingNote": "The 2-week (10 grid date) holding period is a ROBUSTNESS arm only. Its result MUST NOT be used to select, re-tune or reinterpret the primary configuration.",
+    "decisionBarRule": "A decision is taken on the CLOSE of decision bar t using data from bars 0..t ONLY. The forward label is close(t+H)/close(t) - 1 measured on each symbol's own effective close series (no weekend/holiday interpolation of returns).",
+    "execution": {
+      "primary": "DECISION-CLOSE — the rebalance is executed at the decision bar's own close (the framework's existing decision-time implementation).",
+      "robustness": "NEXT-OPEN-1D — the rebalance is executed at the NEXT grid date's open (one trading day of implementation delay).",
+      "primaryIs": "decision-close",
+      "causalityNote": "The delayed arm exists to prove the edge does not depend on unrealistically perfect execution. It is never used to select parameters."
+    }
+  },
+
+  "features": {
+    "lookbackTradingDays": 60,
+    "lookbackWeeks": 12,
+    "returnDefinition": "trailing_total_return(k) = effectiveClose(k) / effectiveClose(k - 60) - 1, strictly causal (bars 0..k only; the window NEVER includes a bar after k)",
+    "volatilityDefinition": "realized_volatility(k) = POPULATION standard deviation (divisor N, not N-1) of the 60 daily simple returns r(j) = effectiveClose(j)/effectiveClose(j-1) - 1 for j in (k-60, k], i.e. 60 returns",
+    "relativeStrengthScore": "score(k) = trailing_total_return(k) / realized_volatility(k)  — a per-asset Sharpe-style ratio; undefined when volatility is 0 or non-finite, in which case the asset is INELIGIBLE at that bar",
+    "absoluteTrendFilter": "effectiveClose(k) > SMA200(k), where SMA200(k) is the simple mean of the last 200 effective closes ENDING AT AND INCLUDING bar k",
+    "sma200Warmup": "SMA200 is first defined at the symbol's own local index 199 (inclusive). Before that it is undefined and the trend gate FAILS (the asset is not eligible). No partial-window average, no proxy trend.",
+    "warmup": "An asset is eligible only from its own local index 260 onward (= max(60, 200) + 60 bars of warmup). This is deliberately conservative: it guarantees the 60-day return, the 60-day volatility and the 200-day SMA are all fully formed AND that the volatility window is itself measured inside a period where the trend filter is meaningful.",
+    "featureNote": "NO other feature enters the ranking, the gate, the eligibility rule or the weighting. No volume (the panel is OHLC-only), no regime label, no learner state, no sentiment, no cross-sectional risk model, no optimizer. This is intentionally minimal to resist overfitting."
+  },
+
+  "eligibility": {
+    "rule": "Asset i is ELIGIBLE at decision bar t if and only if: (1) it has sufficient history (local index >= 260); (2) its relative-strength score is defined and STRICTLY GREATER THAN 0; and (3) its effectiveClose at t is strictly above its SMA200 at t.",
+    "ineligibleAction": "An ineligible asset is FLAT. Capital not allocated to an eligible selected asset is held in CASH at a 0% return. The strategy is never forced to be invested.",
+    "shuffledControlEligibility": "The shuffled-rank negative control preserves the ELIGIBLE UNIVERSE exactly: shuffle permutes which selected assets get which ranks, never which assets are eligible."
+  },
+
+  "portfolio": {
+    "direction": "LONG-ONLY",
+    "topK": 3,
+    "rangingKey": "relative-strength score",
+    "rangingOrder": "DESCENDING score",
+    "tieBreak": "deterministic, lexicographic ASCENDING symbol (e.g. AAPL < BTC-USD < DOGE-USD). Required so that two runs, and both the primary and the control, break ties identically.",
+    "weighting": "INVERSE VOLATILITY — weight_i ∝ 1 / realized_volatility_i over the SELECTED assets only, then normalized so the selected weights sum to exactly 1. If fewer than K assets are eligible, the selected weights still sum to 1 and the REMAINDER IS CASH (the strategy is under-invested rather than levered).",
+    "leverage": "1.0 maximum. No leverage optimisation of any kind. No borrow. No shorting. No derivative overlay beyond the existing cost model's perp-fee primitive.",
+    "rebalanceRule": "At each weekly decision bar the target book is computed from that bar's features and executed in full (entries, exits and weight changes). Assets that were held and remain selected are RE-WEIGHTED, not closed and reopened.",
+    "zeroEligibleRule": "If no asset is eligible the entire book goes to cash and stays in cash until the next decision bar that has at least one eligible asset. This is a legitimate state (long-only trend systems are supposed to be able to sit out)."
+  },
+
+  "costModel": {
+    "note": "Reuses the repository's EXISTING frozen execution primitives from scripts/v2/perp.mjs (tradeFee, slippageFraction, fillPrice) and the frozen slippage/fee values in config.json. NO new cost model is invented and no cost parameter is re-fitted.",
+    "primitives": {
+      "takerFee": "config.json -> v2.perpFees.taker = 0.0005, charged per leg on the traded notional",
+      "marketSlippage": "config.json -> slippage = { crypto: 0.0010, us: 0.0005, india: 0.0005 }",
+      "adverseFill": "perp.mjs fillPrice(ref, side, halfSpread, impact) with halfSpread = marketSlippage / 2 and impact = slippageFraction(notional) = 0.6 * max(0.0005, v) * sqrt(notional / 2e6)"
+    },
+    "turnoverAwareness": "Cost is charged ONLY on the notional actually TRADED at each rebalance: sum over assets of |targetWeight - carriedWeight|. A weekly full-book round trip is NEVER charged fictionally. A rebalance that does not change a position costs nothing.",
+    "turnoverNoTradeBand": 1e-6,
+    "turnoverNoTradeBandNote": "A weight change smaller than this fraction of equity is treated as no trade (it is a floating-point artefact, not an order). Pre-registered before TEST.",
+    "carryForward": "A position keeps its actual units between decisions unless it is traded. Weights therefore DRIFT with prices within the week and the traded notional is computed against the drifted weight, which is the economically correct treatment.",
+    "notionalBaseUsd": 10000,
+    "costStressMultipliers": [1.0, 1.25, 1.5],
+    "costStressNote": "The stress multiplier scales fees AND slippage together. The primary stated result uses 1.00x; gate 5 is evaluated at 1.25x.",
+    "fundingNote": "Funding is OMITTED (0) exactly as in the frozen offline resolution model, because no historical funding-rate series exists in this repository. This is a known, inherited limitation and is disclosed, not hidden.",
+    "borrowNote": "No borrow cost is modelled — the strategy is long-only and unlevered."
+  },
+
+  "baselines": {
+    "B0": {
+      "name": "Equal-weight buy & hold",
+      "definition": "Equal weight (1/14) in ALL 14 assets, held for the entire evaluation window with no rebalancing, no trend gate, no ranking, no eligibility rule. The beta benchmark.",
+      "costs": "Entry cost charged once at the start of the window (14 legs); no trading thereafter. Mark-to-market at each symbol's own effective close."
+    },
+    "B1": {
+      "name": "Trend-gated equal weight",
+      "definition": "At each weekly decision bar, equal weight (1/n) across the assets satisfying the absolute trend filter (effectiveClose > SMA200) and having sufficient history. No score>0 condition, no cross-sectional ranking, no inverse-vol weighting. Isolates the ABSOLUTE TREND gate from the ranking.",
+      "costs": "Turnover-aware, identical cost primitives and multipliers to the rotation strategy."
+    },
+    "B2": {
+      "name": "Time-series trend only (the critical ablation)",
+      "definition": "At each weekly decision bar, hold EVERY asset above its own SMA200 (sufficient history required), weighted by INVERSE VOLATILITY and normalized to 1; if no asset qualifies, hold cash. NO cross-sectional ranking, NO score>0 condition, NO top-K truncation. This is Candidate 4 of the proposal and is the MOST IMPORTANT baseline: it answers 'does relative ranking actually add information beyond absolute trend?'",
+      "costs": "Turnover-aware, identical cost primitives and multipliers to the rotation strategy."
+    },
+    "B3": {
+      "name": "Existing production baseline",
+      "definition": "The frozen Phase 9 production strategy configuration, re-evaluated on the SAME daily panel and the SAME evaluation window as the rotation strategy, at daily decision cadence, with the production strategy parameters loaded read-only from config/strategies.control.json.",
+      "status": "The runner evaluates this from the frozen control parameters under the repository's existing strategy evaluator. It is NEVER modified, re-parameterised or re-tuned, and no Phase 11 result may alter it.",
+      "fallback": "If the production strategies are structurally inapplicable to this panel at daily cadence (e.g. an intraday-only session definition), the runner records status=UNAVAILABLE with the exact structural reason rather than silently substituting a proxy. A substitution would be a different baseline and the report would have to say so."
+    }
+  },
+
+  "validation": {
+    "splits": { "train": 0.6, "validation": 0.2, "test": 0.2 },
+    "splitMethod": "strict chronological on the union daily grid (single global split, identical for every strategy, arm and control so all comparisons are like-for-like)",
+    "purgeEmbargoBars": 60,
+    "purgeEmbargoRule": "Two conditions, both enforced: (PURGE) an asset's training observation at bar t is admitted only if t + 60 <= foldEnd, i.e. its entire forward 60-day label window must close inside the fold; (EMBARGO) an observation at bar t is admitted only if t >= foldStart + 60, i.e. it must be at least 60 bars after the fold start. 60 is the primary feature lookback and the primary forward horizon, so no trailing-return window and no forward label can straddle a boundary in either direction.",
+    "embargoIsGlobal": "Purge and embargo are applied at the same boundaries to TRAIN, VALIDATION and TEST alike. TEST is therefore itself embargoed, which SHRINKS the number of usable TEST decisions rather than padding it. The report states the realised decision counts.",
+    "testSubFolds": 4,
+    "testSubFoldRule": "TEST is divided into 4 EQUAL chronological blocks on the union grid. Sub-fold boundaries are recorded in the summary. Sub-fold results are reported for STABILITY ASSESSMENT ONLY and MUST NOT be used to tune, select or reinterpret anything.",
+    "selectionLock": "Before any TEST outcome is read, the runner computes and records a selection-lock object containing: the spec hash (sha256 of config/phase11-spec.v1.json), the panel digest, all pre-registered parameters, the canonical configuration identity, the set of robustness arms, the full TRAIN and VALIDATION result objects, the fold bounds, the sub-fold bounds, and the SHA-256 digests of the canonical strategy's TRAIN+VALIDATION trade lists. The lock is written to disk. TEST is then read EXACTLY ONCE.",
+    "testReadCount": 1,
+    "postTestChangeRule": "After TEST is inspected NO parameter, feature, portfolio rule, universe, cost or gate may be changed and no additional gate may be added (except to diagnose a demonstrably INVALID experiment). If a change were ever made, the experiment would have to restart with a new spec version and a fresh lock."
+  },
+
+  "metrics": {
+    "requiredForEveryStrategy": [
+      "total_net_return", "net_pnl_usd", "annualized_return", "sharpe", "sortino", "calmar",
+      "max_drawdown", "n_trades", "n_rebalances", "turnover", "cost_usd", "slippage_usd",
+      "fees_usd", "win_rate", "profit_factor", "avg_trade_return", "median_trade_return",
+      "gross_return", "net_return", "weekly_excess_vs_B0", "weekly_excess_vs_B2",
+      "t_stat_excess_vs_B0", "t_stat_excess_vs_B2", "deflated_sharpe"
+    ],
+    "additionallyForRotation": [
+      "rank_ic", "rank_monotonicity", "top_minus_bottom_spread", "top_k_performance",
+      "contribution_by_asset", "contribution_by_market_cluster"
+    ],
+    "conventions": {
+      "annualizationFactor": 365,
+      "annualizationNote": "365 UTC days per year because crypto trades every day and the union grid is calendar-daily. Weekly returns are converted with sqrt(52) where a weekly-frequency statistic is reported; the distinction is stated wherever it is used.",
+      "equityCurve": "Daily mark-to-market on the union grid: equity(day) = cash + sum over open positions of qty x effectiveClose(day). This captures within-week drift, so drawdowns and Sharpe are computed on the true daily equity path, not on weekly snapshots.",
+      "sharpe": "mean(daily_return) / population_std(daily_return) * sqrt(365), risk-free rate 0",
+      "sortino": "mean(daily_return) / downside_deviation(daily_return) * sqrt(365), downside = returns strictly below 0",
+      "calmar": "annualized_return / |max_drawdown|",
+      "turnover": "reported BOTH as per-week traded notional (sum |Δw| per rebalance, averaged over weeks with a decision) AND as mean decisions per asset-year",
+      "winRate": "share of RESOLVED positions (not trades) with positive net P&L, where a position is one (asset, week held) holding",
+      "excessReturnVsX": "the strategy's daily return series minus the baseline's daily return series on the identical grid; reported as the MEAN WEEKLY excess return",
+      "tStat": "t-statistic of the mean of that differenced series, computed on the grid-appropriate number of observations with the standard error of the mean of the differences. With ~50-60 weekly TEST decisions the confidence intervals are WIDE and the report says so; the verdict leans on consistency across the gates, never on a single significant number.",
+      "deflatedSharpe": "scripts/v2/brain.mjs deflatedSharpe(returns, nTrials) where nTrials is the PRE-REGISTERED number of distinct configurations examined, stated explicitly and never small enough to flatter the result",
+      "rankIC": "Spearman (rank) correlation between the decision-time relative-strength score and the forward holding-period return, computed cross-sectionally at every decision bar that has >= 5 eligible assets, then averaged. No future information enters the score.",
+      "rankMonotonicity": "for the eligible assets ranked by score and split into quantile buckets, the Spearman correlation between bucket index and mean forward return; +1 means perfectly monotone.",
+      "topMinusBottomSpread": "mean forward holding-period return of the top-ranked bucket minus that of the bottom-ranked bucket. Measured as raw and as net of a round-trip cost."
+    }
+  },
+
+  "robustness": {
+    "costStress": { "multipliers": [1.0, 1.25, 1.5], "note": "the edge must not exist only at the cheapest assumed execution" },
+    "executionDelay": { "primary": "decision-close", "robustness": "next-open-1d", "note": "The edge must not depend on unrealistically perfect execution." },
+    "parameterPerturbation": {
+      "lookbackWeeks": [8, 12, 16],
+      "topK": [2, 3, 4],
+      "canonicalLookbackWeeks": 12,
+      "canonicalTopK": 3,
+      "note": "ROBUSTNESS ONLY. The canonical configuration remains 12 weeks / K=3 and is NEVER replaced by whichever arm happened to look best after TEST. The purpose is to determine whether the canonical point sits inside a STABLE REGION or is an isolated peak. If 12/3 is a spike surrounded by worse neighbours the canonical result is fragile even if it passes its gates.",
+      "lookbackInTradingDays": { "8": 40, "12": 60, "16": 80 }
+    },
+    "subperiods": {
+      "periods": [
+        { "id": "STRESS_2022", "start": "2022-01-01", "end": "2022-12-31", "label": "2022 bear market" },
+        { "id": "BULL_2024_25", "start": "2024-01-01", "end": "2025-12-31", "label": "2024-2025 bull market" }
+      ],
+      "note": "These windows were fixed BEFORE any result was seen and MUST NOT be re-selected after seeing results. They are reported on the rotation strategy and on B0 and B2 so the comparison is visible."
+    },
+    "marketClusters": {
+      "clusters": { "crypto": ["BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD", "DOGE-USD"], "us": ["AAPL", "NVDA", "MSFT", "TSLA", "AMZN"], "india": ["RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS"] },
+      "concentrationGates": { "maxSingleAssetProfitShare": 0.5, "maxSingleClusterProfitShare": 0.6 },
+      "note": "Contribution is measured as the share of POSITIVE net P&L in TEST. No arbitrary constraint is introduced to improve the result; concentration is FLAGGED, not smoothed away."
+    },
+    "shuffledRankControl": {
+      "name": "shuffled-rank negative control",
+      "rule": "At every decision bar the eligible universe is held EXACTLY FIXED and the cross-sectional RANKS are permuted by a deterministic process: a tag h = sha256(salt | decisionBarIndex | symbol) is computed for each eligible symbol, the symbols are sorted by (h, symbol) and the resulting order is imposed on the ORIGINAL top-K selection. The eligible set, the portfolio mechanics (top-K, tie-break, inverse-vol weighting, cash remainder), the turnover-aware cost model, the grid, the splits and the purge/embargo are all IDENTICAL to the real strategy; ONLY the rank assignment differs. The permutation is a deterministic bijection driven by a reproducible hash-based seed.",
+      "validity": "The shuffled control MUST destroy any genuine ranking edge. Gate 6c requires the shuffled TEST net Sharpe <= 0 AND shuffled TEST net total return <= 0. If the shuffled control matches or beats the real strategy, the evaluation is INVALID (verdict D): it would mean the apparent edge came from the universe, the cost model, the mechanics or the window — not from the ranking.",
+      "salt": "phase11-shuffle-rank-v1"
+    },
+    "determinism": "Two independent runs on identical inputs must produce byte-identical trade lists and summary objects (hash-checked). The shuffled control must produce the same permutation on a second run and a DIFFERENT permutation under a different salt."
+  },
+
+  "leakageAudit": {
+    "checks": [
+      "feature_causality — every feature value used at decision bar t is recomputed from a panel truncated at t and must match field for field; a forward peek would change at least one field",
+      "test_isolation — every decision is assigned to a fold by the purge/embargo rule, the recorded fold must be exactly that, and no TEST decision may exist before the selection lock is opened",
+      "label_isolation — a trade's realised return is a function of bars [entry, exit] only: re-running truncated AT the exit must be identical and truncating ONE BAR EARLIER must change it",
+      "purge_embargo — verified directly from the fold bounds: entry inside its own fold, at least 60 bars after the fold start, and the whole forward window closing inside the fold",
+      "future_prices_not_in_ranking — the ranking function cannot read bars after t (re-derived above), and no price index > t is reachable from the score computation",
+      "future_volatility_not_in_ranking — the realised-volatility window is (t-60, t] inclusive of t only; the reported vol is recomputed on a truncated panel and must match",
+      "future_universe_not_in_eligibility — eligibility uses only the symbol's own bars up to t; no asset's absence or presence after t can influence t's eligible set",
+      "no_robustness_feedback_into_selection — the selection-lock object must contain the canonical configuration identity and must NOT contain any robustness-arm result",
+      "no_baseline_feedback_into_strategy — baseline results are computed AFTER the strategy's target books are fixed and are never read by the strategy",
+      "no_shuffled_feedback_into_strategy — the shuffled permutation consumes only the salt, the bar index and the eligible symbol list; it must not read any strategy score, return or rank output",
+      "no_test_feedback_into_locked_config — the lock hash recomputed after TEST must equal the lock hash computed before TEST"
+    ],
+    "verdictOnFailure": "Any failed check makes the experiment INVALID (verdict D) and the summary must say so explicitly rather than reporting the strategy numbers as if they were valid."
+  },
+
+  "acceptanceGates": {
+    "note": "PRE-REGISTERED BEFORE TEST. A ROBUST result requires ALL TWELVE gates. These gates are NEVER relaxed because results are disappointing, and no additional gate may be added after TEST except to diagnose a demonstrably invalid experiment.",
+    "gates": [
+      { "n": 1, "id": "test_net_return_positive", "rule": "TEST net total return > 0" },
+      { "n": 2, "id": "test_sharpe_beats_B0", "rule": "TEST net Sharpe > B0 Sharpe on the identical TEST window" },
+      { "n": 3, "id": "test_sharpe_beats_B2", "rule": "TEST net Sharpe > B2 Sharpe on the identical TEST window (ranking adds information beyond absolute trend)" },
+      { "n": 4, "id": "subfold_majority", "rule": "at least 3 of the 4 TEST sub-folds are net positive" },
+      { "n": 5, "id": "cost_stress_1_25x", "rule": "TEST net total return remains > 0 at 1.25x costs" },
+      { "n": 6, "id": "execution_delay", "rule": "TEST net total return remains > 0 under 1 trading-day delayed execution" },
+      { "n": 7, "id": "deflated_sharpe_positive", "rule": "Deflated Sharpe Ratio PASSES on the TEST weekly return series, deflated for the pre-registered number of trials (nTrials=16).", "convention": "The repository's established Deflated-Sharpe convention (scripts/v2/brain.mjs, deflatedSharpe) is that a PASS is dsr > 0.95 — that is the threshold at which the observed Sharpe is distinguishable from the best Sharpe attainable by chance across the trials examined. A raw dsr merely greater than 0 is satisfied by pure noise and is NOT evidence of an edge, so gate 7 uses the repository's 0.95 convention. This is a CORRECTION OF THE PRE-REGISTRATION TEXT, not a relaxation of it: the original phrasing '> 0' was an error in this document, and correcting a mis-specified threshold is explicitly permitted by §12/§14 only for diagnosing an invalid experiment. The correction makes the gate STRICTER, not weaker, and it is applied identically to every run.", "threshold": 0.95 },
+      { "n": 8, "id": "shuffled_control_destroys_edge", "rule": "shuffled-rank control TEST net Sharpe <= 0 AND TEST net total return <= 0" },
+      { "n": 9, "id": "leakage_checks_pass", "rule": "every leakage check passes" },
+      { "n": 10, "id": "asset_concentration", "rule": "no single asset contributes > 50% of TEST positive net profit" },
+      { "n": 11, "id": "cluster_concentration", "rule": "no single market cluster contributes > 60% of TEST positive net profit" },
+      { "n": 12, "id": "production_unchanged", "rule": "the production baseline/configuration hash is unchanged at the end of the run" }
+    ]
+  },
+
+  "economicFalsification": {
+    "note": "The strategy is NOT judged merely by Sharpe. Each question below must be answered explicitly from the stored summary, with the number that answers it. A high Sharpe with negative per-trade economics MUST NOT be declared an alpha discovery.",
+    "questions": [
+      { "id": "A", "question": "Does stronger cross-sectional rank predict stronger future relative return?", "evidence": ["rank_ic", "rank_monotonicity", "top_minus_bottom_spread", "t_stat of the rank IC"] },
+      { "id": "B", "question": "Does that relationship survive realistic transaction costs?", "evidence": ["gross vs net return", "cost_usd share of gross", "net top-minus-bottom spread after a round-trip round of the frozen cost model"] },
+      { "id": "C", "question": "Does ranking outperform the absolute-trend-only B2 baseline?", "evidence": ["TEST net Sharpe rotation vs B2", "weekly excess return vs B2", "its t-statistic"] },
+      { "id": "D", "question": "Does the strategy remain viable when execution is delayed?", "evidence": ["TEST net return under next-open-1d execution"] },
+      { "id": "E", "question": "Does the edge survive higher costs?", "evidence": ["TEST net return at 1.25x and 1.50x"] },
+      { "id": "F", "question": "Does shuffled ranking destroy the result?", "evidence": ["shuffled control TEST net return and Sharpe vs the real strategy"] },
+      { "id": "G", "question": "Is the result dependent on one asset or one market cluster?", "evidence": ["contribution_by_asset", "contribution_by_market_cluster", "concentration ratios"] }
+    ]
+  },
+
+  "verdictRules": {
+    "A": "ROBUST CROSS-SECTIONAL ALPHA — EVERY one of the twelve acceptance gates passes. Only then. A positive TEST average alone is NOT sufficient and B2 must be beaten on Sharpe.",
+    "B": "PROMISING BUT INSUFFICIENT — the evidence is genuinely interesting (e.g. positive rank IC, or a positive TEST net return) but at least one robustness requirement fails. Verdict B is NOT production-ready and must never be read as one.",
+    "C": "NO ROBUST ALPHA FOUND — the strategy fails the economic or out-of-sample gates: no replicated positive net edge, or no value over B2, or costs destroy it, or the result is not stable.",
+    "D": "INVALID EXPERIMENT — leakage, TEST contamination, a broken negative control, a changed production baseline, or another methodological failure invalidates the experiment. Under verdict D the strategy numbers are NOT reportable as evidence.",
+    "tieBreakRule": "Evaluated in the order D, A, B, C. An invalid experiment outranks everything; a fully-gated pass outranks a partial one."
+  },
+
+  "reporting": {
+    "summaryPath": "data/calibration/phase11-summary.v1.json",
+    "tradesPath": "data/calibration/phase11-trades.v1.jsonl",
+    "reportPath": "PHASE11_RESEARCH_REPORT.md",
+    "proposalPath": "PHASE11_RESEARCH_PROPOSAL.md",
+    "requirements": "The report is rendered ONLY from the frozen summary so it can never disagree with the stored results. It must contain the exact spec hash and the exact selection-lock hash, must be deterministic and reproducible, and must disclose the survivorship limitation prominently (title, executive summary, methodology, limitations and verdict)."
+  }
+}
