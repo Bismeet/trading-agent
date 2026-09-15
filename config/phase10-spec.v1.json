@@ -1,0 +1,271 @@
+{
+  "version": "1.0.0",
+  "phase": "phase10-regime-portfolio",
+  "status": "PRE-REGISTERED — IMMUTABLE",
+  "note": "Pre-registered protocol for PHASE 10 (post-alpha-research). Hypothesis under test: existing trend/momentum information may have positive expected value only in particular combinations of regime, direction, horizon and trading-cost conditions; the next system improvement should therefore be OPPORTUNITY SELECTION AND PORTFOLIO ALLOCATION, not another large signal search. Every threshold below was fixed BEFORE any measurement. The runner reads this file and may not invent thresholds in code.",
+  "criticalRule": "Do NOT create a best strategy. The deliverable is a probability/expected-value map P(profit | signal, regime, side, horizon) and E[R | signal, regime, side, horizon]. The final system must know when NOT to trade. FLAT is a first-class output.",
+  "deploymentRule": "If no candidate passes every gate: STOP — output is NO ROBUST CONDITIONAL ALPHA FOUND. Do not tune until the backtest becomes positive. If candidates pass: do NOT deploy; produce a proposed production specification and wait for a separate deployment phase.",
+
+  "frozenBaseline": {
+    "note": "The current production strategy/risk configuration is FROZEN for this phase. The runner hashes these files at start and end and aborts if any changed. Live strategy parameters, learner thresholds, survival gate, leverage, production sizing, production management and the production ledger are read-only or untouched.",
+    "inputs": {
+      "config.json": "05c52fabe110639f96f6438a621c655352ebcc9bc19748a4c0559d436762b313",
+      "config/final.control.json": "30f5d8473affcfc56f128c34d89a6f2f2332f1a49165b0f73f53f90293df0c76",
+      "config/management.control.json": "c18de8f560d1637074586c5431dbd1ef76a4cd5ca6f9f449b386bfa0726be219",
+      "config/final-experiment-spec.v1.json": "4274e685b2e9db9237d31337b9c6b4b04b7c577d25cb519bd37e7d9a23c59c26",
+      "config/alpha-experiment-spec.v1.json": "808296d1236d8e28387743744ad6d0e4fe4ae3bcce6d97c2cd7c6a9dcf2d8aac"
+    }
+  },
+
+  "data": {
+    "researchPanel": "hour",
+    "researchInterval": "60m",
+    "researchRange": "730d",
+    "contextPanel": "daily",
+    "barMs": 3600000,
+    "note": "Same research universe, panels and execution/cost primitives as the alpha research phase. No instrument is added."
+  },
+
+  "splits": { "train": 0.6, "validation": 0.2, "test": 0.2 },
+  "purgeEmbargo": {
+    "maxForwardHorizonHours": 168,
+    "embargoHours": 168,
+    "purge": "An occurrence is assigned to a fold ONLY if its entry bar AND its full forward window [k, k+hBars] lie inside that fold. No label may straddle a fold boundary.",
+    "embargo": "An occurrence whose entry bar lies within embargoHours after the START of any fold is unassigned. Serial dependence between adjacent folds is thereby broken on both sides of every boundary.",
+    "note": "Horizons overlap in time; without purge+embargo at the maximum forward horizon (168h) the folds would share information."
+  },
+
+  "horizonsHours": [4, 12, 24, 48, 72, 168],
+  "primaryHorizonHours": 24,
+
+  "signals": [
+    {
+      "id": "tsmom28",
+      "family": "TSMOM",
+      "name": "Production TSMOM re-expressed at hourly resolution",
+      "definition": "r28 = close/close[-672h] - 1 (28 calendar days of hourly bars); LONG when r28 > 0.03 AND daily close above 200d SMA; SHORT when r28 < -0.03 AND below; cadence: first hourly bar of the UTC day on which the condition holds (production daily decision cadence)",
+      "uses": ["r672", "dailyAboveSma200"],
+      "geometry": "tsmom"
+    },
+    {
+      "id": "donchian20",
+      "family": "DONCHIAN",
+      "name": "Production Donchian re-expressed at hourly resolution",
+      "definition": "prior 20 days = 480 hourly bars; LONG when close > max(prior 480 closes) AND daily close above 200d SMA; SHORT mirrored; cadence: first hourly bar of the UTC day on which the condition holds",
+      "uses": ["priorMaxClose480", "priorMinClose480", "dailyAboveSma200"],
+      "geometry": "donchian"
+    },
+    {
+      "id": "breakout48_trend",
+      "family": "MOMENTUM_TREND",
+      "name": "48h breakout with 24h trend agreement (pre-existing alpha family A)",
+      "definition": "close > max(prior 48 hourly highs) AND r24 > 0 AND daily SMA50 trend up (long); exact mirror for short",
+      "uses": ["breakout48", "r24", "dailySma50Dir"],
+      "geometry": "alpha_breakout"
+    },
+    {
+      "id": "persistence3",
+      "family": "MOMENTUM_TREND",
+      "name": "Three-horizon trend persistence (pre-existing alpha family B)",
+      "definition": "sign(r4)==sign(r24)==sign(r72)!=0 AND |z24| >= 1.0",
+      "uses": ["r4", "r24", "r72", "z24"],
+      "geometry": "alpha_breakout"
+    },
+    {
+      "id": "momentum24",
+      "family": "MOMENTUM_TREND",
+      "name": "24h momentum continuation (pre-existing alpha family C)",
+      "definition": "|z24| >= 1.5 AND sign(r24)==sign(r72)",
+      "uses": ["r24", "r72", "z24"],
+      "geometry": "alpha_breakout"
+    },
+    {
+      "id": "volexp_breakout",
+      "family": "VOL_EXPANSION_BREAKOUT",
+      "name": "Volatility expansion plus 48h breakout (pre-existing alpha family D)",
+      "definition": "breakout48 direction AND volExpansion >= 1.2 AND side not counter to daily trend",
+      "uses": ["breakout48", "volExpansion", "r24", "dailySma50Dir"],
+      "geometry": "alpha_breakout"
+    }
+  ],
+  "signalPolicy": {
+    "note": "No new indicators. The four pre-existing alpha momentum/trend/breakout signals are reused verbatim from the frozen alpha research layer (alpha.mjs). tsmom28 and donchian20 are faithful hourly re-expressions of the two frozen production strategies (strategies.mjs sigTsmom / sigDonchian thresholds: retN=28d, momThreshold=0.03, SMA200 filter; lookback=20d, SMA200 filter).",
+    "direction": "Every signal reports LONG and/or SHORT per bar. FLAT is implicit: bars with no signal occurrence carry no opportunity. Long/short symmetry is NEVER assumed — every cell is side-specific.",
+    "dailyCadence": "One occurrence per symbol per UTC day per side for tsmom28/donchian20 (first hourly bar of the day on which the condition holds), mirroring the production decision cadence."
+  },
+
+  "featureThresholds": {
+    "breakoutLookbacks": [4, 24, 48],
+    "volExpansionMin": 1.2,
+    "compressionRatioMax": 0.6,
+    "compressionShortWindow": 48,
+    "compressionLongWindow": 240,
+    "bodyRatioMin": 0.5,
+    "persistenceZMin": 1,
+    "momentumZMin": 1.5,
+    "mtfZMin": 0.5,
+    "strongTrendZ": 1.5,
+    "weakTrendZ": 0.5,
+    "volRegimeHighRatio": 1.5,
+    "volRegimeLowRatio": 0.7,
+    "volRatioWindow": 240,
+    "expansionVolRatio": 1.3,
+    "contractionVolRatio": 1,
+    "compressionRegimeMax": 0.65,
+    "atrFastN": 14,
+    "atrSlowN": 50,
+    "dailySmaFastN": 50,
+    "dailySmaSlowN": 200
+  },
+
+  "regimeState": {
+    "states": ["STRONG_TREND", "WEAK_TREND", "RANGE", "VOL_EXPANSION", "VOL_CONTRACTION"],
+    "featuresUsed": [
+      "trend strength |z24| = |r24 / (atrNorm * sqrt(24))|",
+      "volatility expansion volExpansion = ATR14 / ATR50 (fast/slow)",
+      "range compression rangeCompression = prior-48h channel width / prior-240h channel width",
+      "recent return r24 (direction attribute only)",
+      "multi-timeframe trend agreement (daily SMA50 direction; used by signals, not by the state machine)"
+    ],
+    "hysteresis": {
+      "volExpansionEnterHigh": 1.35, "volExpansionExitHigh": 1.15,
+      "volExpansionEnterLow": 0.75, "volExpansionExitLow": 0.90,
+      "compressionEnter": 0.55, "compressionExit": 0.70,
+      "strongEnterZ": 1.5, "strongExitZ": 1.0,
+      "weakEnterZ": 0.75, "weakExitZ": 0.45
+    },
+    "transitionRule": "state(k) = f(state(k-1), features(k)). A state is LEFT only when its exit condition fires, and the first ENTER condition in the fixed precedence order [VOL_EXPANSION, VOL_CONTRACTION, STRONG_TREND, WEAK_TREND] is then taken; otherwise RANGE. Missing (non-finite) features can never maintain a volatility or trend state — the machine falls through deterministically.",
+    "initialState": "RANGE",
+    "noFitting": "These thresholds are fixed a priori (they bracket the alpha phase's pre-registered regime boundaries) and are never fitted to future returns or to outcomes of any kind.",
+    "directionAttribute": "regimeDirection(k) = sign(r24(k)) is a per-bar causal attribute reported alongside the state; it is NOT part of the state machine and never flips a state."
+  },
+
+  "cellModel": {
+    "axes": ["signalId", "regime", "side", "horizonHours"],
+    "outcomeFieldsPerOccurrence": ["raw_return", "gross_return", "net_return", "MAE", "MFE", "holding_time", "cost", "expected_move", "move_to_cost_ratio", "realized_R"],
+    "cellFields": ["n", "mean_net_R", "median_net_R", "win_rate", "profit_factor", "MAE", "MFE", "MFE_over_MAE", "MFE_over_cost", "cost_stress_result", "next_bar_entry_result", "subfold_results"],
+    "shrinkage": {
+      "priorStrengthK": 10,
+      "profitPrior": 0.5,
+      "posteriorMeanR": "E_shrunk = sum(realized_R) / (n + K)   (Bayesian shrinkage toward zero)",
+      "posteriorProfitProb": "P(profit) = (wins + K * 0.5) / (n + K)   (Beta-strength prior)"
+    },
+    "uncertaintyPenaltyR": 0.25,
+    "uncertaintyRule": "score = E_shrunk / max(stdFloor, shrunkStd) - uncertaintyPenaltyR / sqrt(n)",
+    "volNormalization": {
+      "stdShrinkK": 10,
+      "stdFloorR": 0.5,
+      "shrunkStd": "std_shrunk = (n * std_cell + K0 * std_global) / (n + K0); std_global = std of realized_R over ALL train occurrences"
+    },
+    "correlationMatrix": {
+      "sameSymbol": 0.7,
+      "sameMarket": 0.4,
+      "differentMarket": 0.1,
+      "application": "At selection time each candidate's score is multiplied by (1 - rho_max) where rho_max is the largest correlation against any currently open position and any candidate already admitted at the same decision bar."
+    }
+  },
+
+  "eligibilityGates": {
+    "evaluatedOn": "TRAIN + VALIDATION only, except the two TEST gates",
+    "minNTrain": 30,
+    "minNValidation": 15,
+    "minNTest": 15,
+    "requireTrainNetRPositive": true,
+    "requireValidationNetRPositive": true,
+    "requireTrainRawPositive": true,
+    "requireTrainGrossPositive": true,
+    "requireValidationRawPositive": true,
+    "requireValidationGrossPositive": true,
+    "requireCostStressPositive": true,
+    "costStressMultiplier": 1.25,
+    "requireDelayedEntryPositive": true,
+    "maxSymbolProfitShare": 0.5,
+    "maxPeriodProfitShare": 0.5,
+    "subFolds": 4,
+    "minPositiveTestSubFolds": 3,
+    "requireTestNetRPositive": true,
+    "marketShareThreshold": 0.1,
+    "marketBreadthRule": "Every market carrying at least 10% of the cell's TRAIN+VALIDATION sample must have positive mean net R."
+  },
+
+  "allocator": {
+    "note": "OFFLINE, deterministic opportunity allocator. No randomness, no neural networks, no LLM, no fitting on TEST. Allocation parameters below are fixed a priori.",
+    "decisionCadence": "every hourly decision bar",
+    "totalRiskUnits": 6,
+    "maxConcurrentPerSymbol": 1,
+    "maxConcurrentPerMarket": 3,
+    "riskUnitUsd": 100,
+    "geometry": {
+      "alpha_breakout": { "baseLev": 12, "stopPct": 0.05, "targetPct": 0.08 },
+      "tsmom": { "baseLev": 12, "stopPct": 0.05, "targetPct": 0.10 },
+      "donchian": { "baseLev": 12, "stopPct": 0.05, "targetPct": 0.08 }
+    },
+    "entryMode": "close",
+    "equityStartUsd": 10000,
+    "tieBreak": ["score DESC", "signalId ASC", "regime ASC", "side ASC", "horizonHours ASC"],
+    "exit": "A position exits at its cell horizon, at the stop, or at the target — whichever comes first (identical machinery to the measurement layer)."
+  },
+
+  "ablationArms": {
+    "A_baseline": "Existing baseline strategy: the two frozen production re-expressions (tsmom28 + donchian20) at production cadence with per-symbol non-overlap; no regime, cell or allocation layer.",
+    "B_signal_only": "All occurrences of the four signal families at the primary horizon, per-symbol non-overlap; no filtering by regime, side, horizon or cell.",
+    "C_signal_regime": "B restricted to regimes whose aggregate TRAIN+VALIDATION net R at the primary horizon is positive.",
+    "D_signal_regime_side": "C further restricted to sides whose aggregate TRAIN+VALIDATION net R at the primary horizon is positive.",
+    "E_signal_regime_side_horizon": "D further restricted to (signal, regime, side, horizon) cells passing the TRAIN+VALIDATION eligibility gates (no allocation layer; per-symbol non-overlap).",
+    "F_full_allocator": "Full opportunity allocator: cell eligibility + Bayesian-shrunk expected-R scoring + uncertainty penalty + volatility normalization + correlation penalty + exposure limits + fixed risk budget.",
+    "purpose": "Isolate WHERE any improvement comes from: conditioning on regime, then side, then horizon, then portfolio construction."
+  },
+
+  "robustness": {
+    "costMultipliers": [1.0, 1.25, 1.5],
+    "delayedEntry": { "entryMode": "nextOpen", "note": "entry executed at the NEXT bar's open — one bar of implementation delay" },
+    "worseFills": { "costMultiplier": 1.5, "note": "slightly worse fills: fees + slippage x1.5 (re-priced, no re-simulation)" },
+    "shuffledLabels": {
+      "salt": "phase10-shuffle-v1",
+      "rule": "Within each (fold, horizon) group the outcome measurements are permuted across occurrences by the deterministic order of sha256(occurrence index | salt). The ENTIRE pipeline (cells, eligibility, scoring, allocation) is then re-run on shuffled labels.",
+      "validity": "The shuffled-label control MUST destroy the apparent edge: the shuffled allocator's TEST mean net R must be <= 0 whenever the real allocator's TEST mean net R is positive. If it does not, the evaluation is INVALID (verdict D)."
+    },
+    "determinism": "Two independent runs of the allocator on identical inputs must produce identical trade lists and identical portfolio metrics (hash-checked).",
+    "leakageTests": "tests/phase10.test.mjs — regime machine causality, purge/embargo correctness, feature-level no-look-ahead, allocator determinism."
+  },
+
+  "testEvaluation": {
+    "count": 1,
+    "rule": "TEST may be read EXACTLY ONCE. The selection lock (eligible cell keys + train/val digests + all parameters that influence selection) is hashed BEFORE any TEST outcome is read. With --no-test the run stops before the lock is opened."
+  },
+
+  "portfolioMetrics": [
+    "CAGR", "annualized_volatility", "Sharpe", "Sortino", "Calmar", "max_drawdown",
+    "profit_factor", "win_rate", "expectancy", "turnover", "cost_contribution",
+    "gross_to_net_decay", "exposure", "concentration", "correlation",
+    "worst_month", "worst_week", "worst_day", "time_underwater",
+    "avg_R_per_trade", "median_R_per_trade", "tail_R", "p5_R", "p95_R"
+  ],
+  "portfolioMetricConventions": {
+    "tradingDaysPerYear": 365,
+    "annualization": "daily equity returns (UTC-day grid), vol/scale x sqrt(365); crypto trades 7 days a week",
+    "Sharpe": "mean(daily r) / std(daily r) * sqrt(365), rf = 0",
+    "Sortino": "mean(daily r) / downside-deviation(daily r) * sqrt(365)",
+    "Calmar": "CAGR / |max drawdown|",
+    "tail_R": "mean realized_R of the worst 5% of trades",
+    "turnover": "trades per week and average concurrent open positions",
+    "cost_contribution": "total cost USD / total gross P&L USD",
+    "gross_to_net_decay": "1 - net total / gross total",
+    "time_underwater": "fraction of UTC days with equity strictly below its running peak",
+    "correlation": "mean pairwise daily-P&L correlation across symbols (and the pre-registered correlation matrix used at selection)"
+  },
+
+  "regimeReporting": {
+    "byRegime": ["STRONG_TREND", "WEAK_TREND", "RANGE", "VOL_EXPANSION", "VOL_CONTRACTION"],
+    "bySide": ["long", "short"],
+    "byHorizon": [4, 12, 24, 48, 72, 168],
+    "note": "Every aggregate is reported separately for each regime, each side and each horizon — the conditional map itself."
+  },
+
+  "verdictRules": {
+    "A": "ROBUST CONDITIONAL ALPHA — at least one (signal, regime, side, horizon) cell passes EVERY eligibility gate (positive TRAIN, VALIDATION and TEST net R; >= 3/4 TEST sub-folds positive; all economic gates) AND the full allocator (arm F) keeps positive TEST net economics under x1.25 costs AND under delayed entry. A positive TEST average alone is NOT sufficient.",
+    "B": "PROMISING BUT INSUFFICIENT — the conditional raw edge replicates out-of-sample (positive raw and gross on TEST for locked cells) but at least one economic/robustness gate fails.",
+    "C": "NO ROBUST EDGE — no cell or allocation produces a replicated positive out-of-sample edge. Output: NO ROBUST CONDITIONAL ALPHA FOUND.",
+    "D": "EVALUATION INVALID — the shuffled-label control fails to destroy the apparent edge, or a leakage test fails, or the frozen baseline changed during the run."
+  }
+}
