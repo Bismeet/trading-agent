@@ -1,0 +1,61 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to VPS
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          set -e
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          ssh-keyscan -p "$DEPLOY_PORT" "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+
+          ssh \
+            -i ~/.ssh/deploy_key \
+            -p "$DEPLOY_PORT" \
+            "$DEPLOY_USER@$DEPLOY_HOST" << 'REMOTE'
+              set -e
+
+              cd /home/ubuntu/trading-agent
+
+              echo "Fetching latest GitHub code..."
+              git fetch origin main
+
+              echo "Deploying latest main..."
+              git reset --hard origin/main
+
+              echo "Installing web dependencies..."
+              cd web
+              npm ci
+              cd ..
+
+              echo "Restarting FabInvests..."
+              pm2 restart fabinvests fabinvests-web
+
+              echo "Checking PM2..."
+              pm2 status
+
+              echo "Deployment completed successfully."
+              git log -1 --oneline
+          REMOTE
